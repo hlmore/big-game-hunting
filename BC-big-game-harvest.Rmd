@@ -1,9 +1,14 @@
 ---
 title: "BC big game harvesting"
 output: html_notebook
+# output: 
+#   flexdashboard::flex_dashboard
+#   #flexdashboard::flex_dashboard:
+#     #orientation: columns
 ---
 
-Execute a chunk: click the *Run* button within the chunk or place your cursor inside it and press *Ctrl+Shift+Enter*. 
+<!-- 
+Execute a chunk: click the *Run* button within the chunk or place your cursor inside it and press *Ctrl+Shift+Enter*.
 
 Add a new chunk:  click the *Insert Chunk* button on the toolbar or press *Ctrl+Alt+I*.
 
@@ -12,12 +17,18 @@ This notebook analyzes data on big game harvesting in British Columbia, Canada. 
 Author:  Heather More
 Started:  2020-11-24 
 
+TODO:
+http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
+-->
+
+# ```{r setup, include=FALSE}
 ```{r}
 # Load packages
 library(readxl) # read Excel spreadsheets
 library(tidyverse) # data manipulation
 library(janitor) # data cleaning
 #library(leaflet)  # mapping
+library(flexdashboard) # build output using knit button at top of RStudio
 
 # Custom functions
 source("GetColour.R")
@@ -37,7 +48,7 @@ dataColumnTypes <- c("numeric", # hunt year
 wmuName <- ""
 
 # Which species to plot
-speciesToShow <- c("BEAB", "ELK", "SHEE")
+speciesToShow <- c("ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
 
 # Manually define species based on info in xlsx:  https://stackoverflow.com/a/10679467
 # Get a list of all species codes by:  names(species_defs)
@@ -87,6 +98,7 @@ GetSpeciesColour <- function(speciesCode) {
 
 ```
 
+# ```{r, include=FALSE}
 ```{r}
 # Read in data
 df <- read_xlsx(file.path(dataPath, fileName, 
@@ -107,15 +119,23 @@ df_province <- df %>% filter(prov_flag==9)
 ```
 
 ```{r}
-# Plot total number of each species harvested each year
+# Get data for plots
 to_plot <- df_province %>% 
   filter(species %in% speciesToShow) %>% 
   rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
   mutate(
     total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),
     total_hunters = sum(resident_hunters, non_resident_hunters, na.rm=TRUE),
-    kills_per_hunter = total_kills/total_hunters)
+    total_days = sum(resident_days, non_resident_days, na.rm=TRUE),
+    kills_per_hunter = total_kills/total_hunters,
+    days_per_hunter = total_days/total_hunters,
+    days_per_kill = total_days/total_kills)
+```
 
+<!-- Column {data-width=333} -->
+<!-- ------------------------------------- -->
+```{r}
+# Total kills
 plot_prov_species <- ggplot(data = to_plot) +
   aes(x = hunt_year, y = total_kills, color = species) +
   geom_point(size=2, alpha=0.7) +
@@ -131,7 +151,12 @@ plot_prov_species <- ggplot(data = to_plot) +
        y = paste("Total # kills"),
        title = paste("Total kills from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
 print(plot_prov_species)
+```
 
+<!-- Column {data-width=333} -->
+<!-- ------------------------------------- -->
+```{r}
+# Total hunters
 plot_prov_hunters <- ggplot(data = to_plot) +
   aes(x = hunt_year, y = total_hunters, color = species) +
   geom_point(size=2, alpha=0.7) +
@@ -147,7 +172,12 @@ plot_prov_hunters <- ggplot(data = to_plot) +
        y = paste("Total # hunters"),
        title = paste("Total hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
 print(plot_prov_hunters)
+```
 
+<!-- Column {data-width=333} -->
+<!-- ------------------------------------- -->
+```{r}
+# Avg kills per hunter
 plot_prov_killsperhunter <- ggplot(data = to_plot) +
   aes(x = hunt_year, y = kills_per_hunter, color = species) +
   geom_point(size=2, alpha=0.7) +
@@ -164,5 +194,82 @@ plot_prov_killsperhunter <- ggplot(data = to_plot) +
        title = paste("Average kills per hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
 print(plot_prov_killsperhunter)
 ```
+```{r}
+# Total hunting days
+plot_prov_totaldays <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = total_days, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Total # hunting days"),
+       title = paste("Total # hunting days", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_totaldays)
+```
 
+```{r}
+# Avg hunting days per hunter
+plot_prov_daysperhunter <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = days_per_hunter, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Avg hunt days per hunter"),
+       title = paste("Average # hunting days per hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_daysperhunter)
+```
+
+```{r}
+# Avg hunting days per kill
+plot_prov_daysperhunter <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = days_per_kill, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Avg hunt days per kill"),
+       title = paste("Average # hunting days per kill from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_daysperhunter)
+```
+
+```{r}
+# Resident and non-resident hunters
+# Note that each individual hunter is probably counted multiple times, because a lot of them probably have more than one tag
+hunters_residence <- df_province %>% 
+  group_by(hunt_year) %>% 
+  summarise(
+    across(resident_hunters, sum, na.rm=TRUE),
+    across(non_resident_hunters, sum, na.rm=TRUE),
+  ) %>% 
+  pivot_longer(cols = !hunt_year, names_to = "residency", values_to = "n_hunters")
+
+plot_prov_resnonres <- ggplot(data = hunters_residence) +
+  aes(x = hunt_year, y = n_hunters, color = residency) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  labs(x = paste("Year"),
+       y = paste("# hunters"),
+       title = paste("Resident and non-resident hunters", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_resnonres)
+```
 

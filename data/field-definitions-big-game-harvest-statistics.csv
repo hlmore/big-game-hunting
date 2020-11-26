@@ -1,0 +1,44 @@
+FIELD,DESCRIPTION,VALUES
+HUNT YEAR,Hunt year (April 1 - March 31),
+SPECIES,Species,"BEAB = Black bear
+BEAG = Grizzly bear
+CARI = Caribou
+COUG = Cougar
+DEMU = Mule deer
+DEWT = White-tailed deer
+ELK = Elk
+GOAT = Mountain goat
+MOOS = Moos
+SHEE = Mountain sheep
+WOLF = Wolf"
+CI,Is the harvest data based on compulsory inspection (CI) records?,"no
+yes"
+PROV FLAG,Is the record for the entire province?,"0 = no
+9 = yes"
+WMU,Management unit,"R00 = in region R but unknown MWU
+R99 = region R total
+999 with PROV FLAG 0 = in province but unknown WMU & region
+999 with PROV FLAG 9 = provincial total"
+REGION,Region,"1 = West Coast
+2 = South Coast
+3 = Thompson
+4 = Kootenay
+5 = Cariboo
+6 = Skeena
+7A = Omineca
+7B = Peace
+8 = Okanagan"
+RESIDENT HUNTERS,Number of resident hunters,
+RESIDENT DAYS,Number of resident hunt days,
+RESIDENT KILLS,Number of resident kills,
+RESIDENT MALE RATIO,Male harvest ratio by resident hunters,
+RESIDENT FEMALE RATIO,Female harvest ratio by resident hunters,
+RESIDENT JUVENILE RATIO,Juvenile harvest ratio by resident hunters,
+RESIDENT UNKNOWN RATIO,Unknown class harvest ratio by resident hunters,
+NON-RESIDENT HUNTERS,Number of non-resident hunters,
+NON-RESIDENT DAYS,Number of non-resident hunt days,
+NON-RESIDENT KILLS,Number of non-resident kills,
+NON-RESIDENT MALE RATIO,Male harvest ratio by non-resident hunters,
+NON-RESIDENT FEMALE RATIO,Female harvest ratio by non-resident hunters,
+NON-RESIDENT JUVENILE RATIO,Juvenile harvest ratio by non-resident hunters,
+NON-RESIDENT UNKNOWN RATIO,Unknown class harvest ratio by non-resident hunters,

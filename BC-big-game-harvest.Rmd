@@ -1,0 +1,168 @@
+---
+title: "BC big game harvesting"
+output: html_notebook
+---
+
+Execute a chunk: click the *Run* button within the chunk or place your cursor inside it and press *Ctrl+Shift+Enter*. 
+
+Add a new chunk:  click the *Insert Chunk* button on the toolbar or press *Ctrl+Alt+I*.
+
+This notebook analyzes data on big game harvesting in British Columbia, Canada.  It uses the 1976--2018 dataset from https://catalogue.data.gov.bc.ca/dataset/big-game-harvest-statistics-1976-2018  I used the .xlsx version of the dataset rather than the .csv version, because the csv had half the header text cut off and does not have descriptions of field codes.
+
+Author:  Heather More
+Started:  2020-11-24 
+
+```{r}
+# Load packages
+library(readxl) # read Excel spreadsheets
+library(tidyverse) # data manipulation
+library(janitor) # data cleaning
+#library(leaflet)  # mapping
+
+# Custom functions
+source("GetColour.R")
+
+# Define input parameters
+# Location of data
+dataPath  <- "D:/Documents/Code/BC big game harvesting/data"
+fileName  <- "big-game-harvest-statistics-1976-2018.xlsx"
+dataSheetName <- "BGHS"  # data
+dataColumnTypes <- c("numeric", # hunt year
+                     "text", # species
+                     "text", # CI
+                     "numeric", # prov flag
+                     "text", # WMU
+                     "text", # region
+                     rep("numeric", 14)) # remaining columns
+wmuName <- ""
+
+# Which species to plot
+speciesToShow <- c("BEAB", "ELK", "SHEE")
+
+# Manually define species based on info in xlsx:  https://stackoverflow.com/a/10679467
+# Get a list of all species codes by:  names(species_defs)
+# Access a species name by:  species_defs[["CODE"]]
+species_defs <- list(
+  "ELK" = "Elk",
+  "DEMU" = "Mule deer",
+  "DEWT" = "White-tailed deer",
+  "MOOS" = "Moose",
+  "BEAB" = "Black bear",
+  "WOLF" = "Wolf",
+  "CARI" = "Caribou",
+  "GOAT" = "Goat",
+  "SHEE" = "Sheep",
+  "BEAG" = "Grizzly bear",
+  "COUG" = "Cougar"
+)
+# Function to look up full name of species based on code
+GetSpeciesName <- function(speciesCode) {
+  species_name <- species_defs[[speciesCode]]
+  return(species_name)
+}
+
+# Colours for plotting
+species_colours <- list(
+  "MOOS" = "pink", # "Moose",
+  "ELK" = "rust", # "Elk",
+  "CARI" = "gold2", # "Caribou",
+  "DEMU" = "yellow2", # "Mule deer",
+  "DEWT" = "yellow", # "White-tailed deer",
+  
+  "GOAT" = "light green", # "Goat",
+  "SHEE" = "dark green", # "Sheep",
+  
+  "BEAB" = "black", # "Black bear",
+  "BEAG" = "grey", # "Grizzly bear",
+  
+  "WOLF" = "light blue", # "Wolf",
+  
+  "COUG" = "dark blue" # Cougar"
+)
+# Function to look up full name of species based on code
+GetSpeciesColour <- function(speciesCode) {
+  species_colour <- GetColour(species_colours[[speciesCode]])
+  return(species_colour)
+}
+
+```
+
+```{r}
+# Read in data
+df <- read_xlsx(file.path(dataPath, fileName, 
+                           fsep = .Platform$file.sep), 
+                sheet = dataSheetName,
+                col_types = dataColumnTypes # specify type of data in each column, or it will use logical for some
+                ) %>% 
+  clean_names()  # make column names nice
+
+# Investigate data
+print(paste("Hunt years:  ", paste(min(df$hunt_year)), "--", paste(max(df$hunt_year)), collapse = ''))
+print(paste('Species:  ', paste(lapply(unique(df$species), GetSpeciesName), collapse = ', ')))
+
+# Find number of rows that report data for entire province
+#unique(df$prov_flag)  # options are 0 or 9
+df_province <- df %>% filter(prov_flag==9)
+#unique(df_province$wmu)  # all wmu values are 999
+```
+
+```{r}
+# Plot total number of each species harvested each year
+to_plot <- df_province %>% 
+  filter(species %in% speciesToShow) %>% 
+  rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
+  mutate(
+    total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),
+    total_hunters = sum(resident_hunters, non_resident_hunters, na.rm=TRUE),
+    kills_per_hunter = total_kills/total_hunters)
+
+plot_prov_species <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = total_kills, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Total # kills"),
+       title = paste("Total kills from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_species)
+
+plot_prov_hunters <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = total_hunters, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Total # hunters"),
+       title = paste("Total hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_hunters)
+
+plot_prov_killsperhunter <- ggplot(data = to_plot) +
+  aes(x = hunt_year, y = kills_per_hunter, color = species) +
+  geom_point(size=2, alpha=0.7) +
+  geom_line() +
+  theme_light() +
+  scale_colour_manual(
+    name = "Species",
+    values = paste(sapply(names(species_colours), GetSpeciesColour)),
+    breaks = names(species_colours),
+    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
+  ) +
+  labs(x = paste("Year"),
+       y = paste("Avg kills per hunter"),
+       title = paste("Average kills per hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+print(plot_prov_killsperhunter)
+```
+
+

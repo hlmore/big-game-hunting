@@ -530,21 +530,24 @@ mapColours <- colorFactor(
   )
 # Prepare labels
 #https://stackoverflow.com/a/43155126
-# ~paste(sep = "<br/>",
-#                              paste("<b>WMU # ", WILDLIFE_MGMT_UNIT_ID, "</b>",
-#                                    sep = ''),
-#                              paste(format(
-#                                round(as.numeric(FEATURE_AREA_SQM/(1000^2)), 1), 
-#                                nsmall = 1, 
-#                                big.mark = ","
-#                                ), "km^2"),  # https://stackoverflow.com/a/29465942
-#                              paste("Game management zone: ", GAME_MANAGEMENT_ZONE_ID, 
-#                                    " (", GAME_MANAGEMENT_ZONE_NAME, ")",
-#                                    sep = ''),
-#                              paste("Hunting region: ", REGION_RESPONSIBLE, 
-#                                    " (", REGION_RESPONSIBLE_NAME, ")",
-#                                    sep = ''),
-#               )
+wmu_labels <- lapply(seq(nrow(wmus)), function(x) {
+  paste(
+           paste("<b>WMU # ", wmus$WILDLIFE_MGMT_UNIT_ID[x], "</b>", sep = ''),
+           paste(format(
+             round(as.numeric(wmus$FEATURE_AREA_SQM[x]/(1000^2)), 1),
+             nsmall = 1,
+             big.mark = ","
+             ), "km^2"),  # https://stackoverflow.com/a/29465942
+           paste("Game management zone: ", wmus$GAME_MANAGEMENT_ZONE_ID[x],
+                 " (", wmus$GAME_MANAGEMENT_ZONE_NAME[x], ")",
+                 sep = ''),
+           paste("Hunting region: ", wmus$REGION_RESPONSIBLE[x],
+                 " (", wmus$REGION_RESPONSIBLE_NAME[x], ")",
+                 sep = ''),
+         sep = "<br/>"
+  )
+})
+
 # Show on map
 leaflet(wmus) %>% 
   addTiles(tilesURL) %>% 
@@ -552,23 +555,8 @@ leaflet(wmus) %>%
               weight = 1,
               opacity = 1,
               fillOpacity = 0.4,
-              color = ~mapColours(REGION_RESPONSIBLE),
-              label = lapply(~paste(sep = "<br/>",
-                             paste("<b>WMU # ", WILDLIFE_MGMT_UNIT_ID, "</b>",
-                                   sep = ''),
-                             paste(format(
-                               round(as.numeric(FEATURE_AREA_SQM/(1000^2)), 1), 
-                               nsmall = 1, 
-                               big.mark = ","
-                               ), "km^2"),  # https://stackoverflow.com/a/29465942
-                             paste("Game management zone: ", GAME_MANAGEMENT_ZONE_ID, 
-                                   " (", GAME_MANAGEMENT_ZONE_NAME, ")",
-                                   sep = ''),
-                             paste("Hunting region: ", REGION_RESPONSIBLE, 
-                                   " (", REGION_RESPONSIBLE_NAME, ")",
-                                   sep = ''),
-              )
-              htmltools::HTML),
+              #color = ~mapColours(REGION_RESPONSIBLE),
+              label = lapply(wmu_labels, htmltools::HTML),  # https://stackoverflow.com/a/43155126
               highlightOptions = highlightOptions(color = "red",
                                                   fillColor = "red",
                                                   weight = 2,

@@ -19,6 +19,9 @@ Annual population of BC from:  https://www2.gov.bc.ca/gov/content/data/statistic
 Hunting licence sales from:
 https://catalogue.data.gov.bc.ca/dataset/hunting-sales-statistics-2005-2019
 
+BC Wildlife management units from:
+https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units
+
 Author:  Heather More
 Started:  2020-11-24 
 
@@ -30,6 +33,7 @@ BC harvest allocation policies:  http://www.env.gov.bc.ca/fw/wildlife/harvest_al
 region and wmu info:  https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/regulations-synopsis
 BC regions map:  https://governmentofbc.maps.arcgis.com/home/webmap/viewer.html
 BC data sets:  catalogue.data.gov.bc.ca/dataset
+BC game management zones:  https://catalogue.data.gov.bc.ca/dataset/game-management-zones
 -->
 
 # ```{r setup, include=FALSE}
@@ -40,7 +44,13 @@ library(tidyverse) # data manipulation
 library(janitor) # data cleaning
 library(leaflet)  # mapping
 library(geojsonio)  # read geojson files
+library(rmapshaper)  # simplify areas on maps
+library(rgeos)  # functions for handling geographic regions
+library(RColorBrewer)  # colour schemes
+#library(pgirmess)  # convert geojson to gpx
+#library(sp)  # spatial polygon analysis
 library(flexdashboard) # build output using knit button at top of RStudio
+library(htmltools)  # HTML formatting for map labels
 
 # Custom functions
 source("GetColour.R")
@@ -59,7 +69,7 @@ dataColumnTypes <- c("numeric", # hunt year
                      rep("numeric", 14)) # remaining columns
 bcPopName <- "pop_bc_annual_estimates_clean.xlsx"
 popDataSheetName <- "data"
-wmuName <- "wmu-trapline-maps/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
+wmuName <- "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
 tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
 
 # Which species to plot
@@ -485,14 +495,126 @@ plot_prov_totalkills <- ggplot(data = total_allspecies) +
 print(plot_prov_totalkills)
 ```
 
+```{r, eval = FALSE}
+# Convert Jim's trapline data
+jim_trapline <- geojsonio::geojson_read(file.path(dataPath, "jim-trapline-map/WAA_TRAPLINE_AREAS_SP.geojson", 
+                           fsep = .Platform$file.sep), what = "sp")
+trapline_id = "TR0332T008"
+trapline_ind <- which(sapply(jim_trapline$TRAPLINE_AREA_IDENTIFIER, FUN = function(x) trapline_id %in% x))
+trapline_ind <- trapline_ind[[1]]
+trapline_df <- fortify(jim_trapline) %>% 
+  filter(id==trapline_ind) %>% 
+  select(id, long, lat)
+writeGPX(trapline_df, paste(trapline_id, "_boundary"), type = "t")  # https://rdrr.io/cran/pgirmess/man/writeGPX.html
+```
+
 ```{r}
 # Wildlife management units map
 # https://rstudio.github.io/leaflet/json.html
+# 4,535,784 bytes
 wmus <- geojsonio::geojson_read(file.path(dataPath, wmuName, 
                            fsep = .Platform$file.sep), what = "sp")
+# Simplify boundaries so they render faster
+# 963,312 bytes
+wmus <- rmapshaper::ms_simplify(wmus)
+# Check total areas add to area of BC (944,735 km^2)
+# Note that the geojson areas include a bunch of water so we expect a higher estimate
+#testarea <- sum(wmus$FEATURE_AREA_SQM/(1000^2))
+# Show possible colour schemes
+#display.brewer.all()
+# Generate palette
+mapColours <- colorFactor(
+  palette = brewer.pal(length(unique(wmus$REGION_RESPONSIBLE)),
+                         "Set2"),
+  levels = unique(wmus$REGION_RESPONSIBLE)
+  )
+# Prepare labels
+#https://stackoverflow.com/a/43155126
+# ~paste(sep = "<br/>",
+#                              paste("<b>WMU # ", WILDLIFE_MGMT_UNIT_ID, "</b>",
+#                                    sep = ''),
+#                              paste(format(
+#                                round(as.numeric(FEATURE_AREA_SQM/(1000^2)), 1), 
+#                                nsmall = 1, 
+#                                big.mark = ","
+#                                ), "km^2"),  # https://stackoverflow.com/a/29465942
+#                              paste("Game management zone: ", GAME_MANAGEMENT_ZONE_ID, 
+#                                    " (", GAME_MANAGEMENT_ZONE_NAME, ")",
+#                                    sep = ''),
+#                              paste("Hunting region: ", REGION_RESPONSIBLE, 
+#                                    " (", REGION_RESPONSIBLE_NAME, ")",
+#                                    sep = ''),
+#               )
+# Show on map
 leaflet(wmus) %>% 
   addTiles(tilesURL) %>% 
-  addPolygons(stroke = TRUE)
-    )
+  addPolygons(stroke = TRUE,
+              weight = 1,
+              opacity = 1,
+              fillOpacity = 0.4,
+              color = ~mapColours(REGION_RESPONSIBLE),
+              label = lapply(~paste(sep = "<br/>",
+                             paste("<b>WMU # ", WILDLIFE_MGMT_UNIT_ID, "</b>",
+                                   sep = ''),
+                             paste(format(
+                               round(as.numeric(FEATURE_AREA_SQM/(1000^2)), 1), 
+                               nsmall = 1, 
+                               big.mark = ","
+                               ), "km^2"),  # https://stackoverflow.com/a/29465942
+                             paste("Game management zone: ", GAME_MANAGEMENT_ZONE_ID, 
+                                   " (", GAME_MANAGEMENT_ZONE_NAME, ")",
+                                   sep = ''),
+                             paste("Hunting region: ", REGION_RESPONSIBLE, 
+                                   " (", REGION_RESPONSIBLE_NAME, ")",
+                                   sep = ''),
+              )
+              htmltools::HTML),
+              highlightOptions = highlightOptions(color = "red",
+                                                  fillColor = "red",
+                                                  weight = 2,
+                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
+              )
+```
+
+```{r}
+# Show hunting regions on map
+# Get list of WMUs mapped to hunting regions
+# WMUs ending in 00 denote values from that hunting region but unknown WMU
+# WMUs ending in 99 denote totals for that hunting region
+# WMU 999 is province-wide total
+# wmu_regions <- df %>% 
+#   select(wmu, region) %>% 
+#   distinct()
+# WMU codes in geojson are e.g. 1-1, 1-15, but in hunting data they are e.g. 101, 115
+# regions <- wmu_regions[wmus$WILDLIFE_MGMT_UNIT_ID]
+
+# https://gis.stackexchange.com/a/225731
+#region1 <- gUnaryUnion(wmus[wmus@data$REGION_RESPONSIBLE == 1, ])
+hunting_regions <- gUnaryUnion(wmus, id = wmus@data$REGION_RESPONSIBLE)
+#plot(hunting_regions)
+# Access area of each region
+# UPDATE:  note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
+# GetArea <- function(x) {
+#   x@area
+# }
+# hunting_region_areas<-sapply(hunting_regions@polygons, GetArea)
+# Show on map
+leaflet(hunting_regions) %>% 
+  addTiles(tilesURL) %>% 
+  addPolygons(stroke = TRUE,
+              weight = 1,
+              opacity = 1,
+              fillOpacity = 0.4,
+              #color = ~mapColours(id),
+              # popup = ~paste(sep = "<br/>",
+              #                paste("<b>Hunting region: ", ID, 
+              #                      " (", ID, ")", "</b>",
+              #                      sep = '')
+              # ),
+              highlightOptions = highlightOptions(color = "red",
+                                                  fillColor = "red",
+                                                  weight = 2,
+                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
+              )
 ```
 

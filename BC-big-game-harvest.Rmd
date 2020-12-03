@@ -562,7 +562,9 @@ leaflet(wmus) %>%
               opacity = 1,
               fillOpacity = 0.4,
               color = ~mapColours(REGION_RESPONSIBLE),
-              label = lapply(wmu_hover_labels, htmltools::HTML),  # labels on hover:  https://stackoverflow.com/a/43155126
+              label = lapply(wmu_hover_labels, htmltools::HTML),
+              labelOptions = labelOptions(
+                direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
   highlightOptions = highlightOptions(color = "red",
                                       fillColor = "red",
                                       weight = 2,
@@ -605,6 +607,14 @@ hunting_regions <- gUnaryUnion(wmus, id = wmus@data$REGION_RESPONSIBLE)
 #   x@area
 # }
 # hunting_region_areas<-sapply(hunting_regions@polygons, GetArea)
+
+# Prepare labels
+# Find coordinates of centroid of each region:  https://gis.stackexchange.com/a/43558
+hunting_region_static_labels <- gCentroid(hunting_regions, byid = TRUE) %>% 
+  as_tibble() %>% 
+  cbind(seq(length(hunting_regions)))
+colnames(hunting_region_static_labels) <- c("long", "lat", "hunting_region")
+
 # Show on map
 leaflet(hunting_regions) %>% 
   addTiles(tilesURL) %>% 
@@ -622,6 +632,19 @@ leaflet(hunting_regions) %>%
                                                   fillColor = "red",
                                                   weight = 2,
                                                   bringToFront = TRUE)  # bring hovered-over polygon to front
-              )
+              ) %>% 
+  addLabelOnlyMarkers(data = hunting_region_static_labels,  # labels always on polygons
+                      lng = ~long, 
+                      lat = ~lat, 
+                      label = ~hunting_region,
+                      labelOptions = labelOptions(
+                        noHide = TRUE, 
+                        direction = 'auto', 
+                        textOnly = TRUE,
+                        style = list(
+                          "color" = "grey"
+                          )
+                        )
+                      )
 ```
 

@@ -530,7 +530,7 @@ mapColours <- colorFactor(
   )
 # Prepare labels
 #https://stackoverflow.com/a/43155126
-wmu_labels <- lapply(seq(nrow(wmus)), function(x) {
+wmu_hover_labels <- lapply(seq(nrow(wmus)), function(x) {
   paste(
            paste("<b>WMU # ", wmus$WILDLIFE_MGMT_UNIT_ID[x], "</b>", sep = ''),
            paste(format(
@@ -547,7 +547,13 @@ wmu_labels <- lapply(seq(nrow(wmus)), function(x) {
          sep = "<br/>"
   )
 })
-
+wmu_static_labels <- lapply(wmus@polygons, function(x) {x@labpt}) %>% 
+  unlist() %>% 
+  matrix(., nrow = length(.), ncol = 2, byrow = TRUE) %>% 
+  as_tibble() %>% 
+  cbind(wmus$WILDLIFE_MGMT_UNIT_ID)
+colnames(wmu_static_labels) <- c("long", "lat", "WMU")
+  
 # Show on map
 leaflet(wmus) %>% 
   addTiles(tilesURL) %>% 
@@ -555,13 +561,26 @@ leaflet(wmus) %>%
               weight = 1,
               opacity = 1,
               fillOpacity = 0.4,
-              #color = ~mapColours(REGION_RESPONSIBLE),
-              label = lapply(wmu_labels, htmltools::HTML),  # https://stackoverflow.com/a/43155126
-              highlightOptions = highlightOptions(color = "red",
-                                                  fillColor = "red",
-                                                  weight = 2,
-                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
-              )
+              color = ~mapColours(REGION_RESPONSIBLE),
+              label = lapply(wmu_hover_labels, htmltools::HTML),  # labels on hover:  https://stackoverflow.com/a/43155126
+  highlightOptions = highlightOptions(color = "red",
+                                      fillColor = "red",
+                                      weight = 2,
+                                      bringToFront = TRUE)  # bring hovered-over polygon to front
+  ) %>% 
+  addLabelOnlyMarkers(data = wmu_static_labels,  # labels always on polygons
+                      lng = ~long, 
+                      lat = ~lat, 
+                      label = ~WMU,
+                      labelOptions = labelOptions(
+                        noHide = TRUE, 
+                        direction = 'auto', 
+                        textOnly = TRUE,
+                        style = list(
+                          "color" = "grey"
+                          )
+                        )
+                      )
 ```
 
 ```{r}

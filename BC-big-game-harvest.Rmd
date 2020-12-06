@@ -76,7 +76,9 @@ dataColumnTypes <- c("numeric", # hunt year
 bcPopName <- "pop_bc_annual_estimates_clean.xlsx"
 popDataSheetName <- "data"
 wmuName <- "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+# Site to preview different basemaps:  http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+#tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
 
 # Which species to plot
 speciesToShow <- c("ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")

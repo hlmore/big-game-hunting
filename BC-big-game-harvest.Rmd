@@ -25,6 +25,11 @@ https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units
 Author:  Heather More
 Started:  2020-11-24 
 
+NOTES:
+https://stackoverflow.com/a/4714080
+- @ accesses a slot in an S4 object like an object in spatialPolygons class.  Find slot names using slotNames(spPolygonObjectName).  Find contents of a slot using slot(spPolygonObjectName, "slotName").
+- $ accesses a named variable in an S4 object or a dataframe or a list
+
 TODO:
 http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
 try getting population data from here:  http://a100.gov.bc.ca/pub/siwe/search_reset.do
@@ -46,6 +51,7 @@ library(leaflet)  # mapping
 library(geojsonio)  # read geojson files
 library(rmapshaper)  # simplify areas on maps
 library(rgeos)  # functions for handling geographic regions
+library(geosphere)  # functions for handling sperical regions (i.e. lat/long coordinages)
 library(RColorBrewer)  # colour schemes
 #library(pgirmess)  # convert geojson to gpx
 #library(sp)  # spatial polygon analysis
@@ -523,10 +529,12 @@ wmus <- rmapshaper::ms_simplify(wmus)
 # Show possible colour schemes
 #display.brewer.all()
 # Generate palette
+colourPalette <- brewer.pal(length(unique(wmus$REGION_RESPONSIBLE)),
+                         "Set2")
+colourLevels <- unique(wmus$REGION_RESPONSIBLE)
 mapColours <- colorFactor(
-  palette = brewer.pal(length(unique(wmus$REGION_RESPONSIBLE)),
-                         "Set2"),
-  levels = unique(wmus$REGION_RESPONSIBLE)
+  palette = colourPalette,
+  levels = colourLevels
   )
 # Prepare labels
 #https://stackoverflow.com/a/43155126
@@ -565,7 +573,7 @@ leaflet(wmus) %>%
               label = lapply(wmu_hover_labels, htmltools::HTML),
               labelOptions = labelOptions(
                 direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
-  highlightOptions = highlightOptions(color = "red",
+  highlight = highlightOptions(color = "red",
                                       fillColor = "red",
                                       weight = 2,
                                       bringToFront = TRUE)  # bring hovered-over polygon to front
@@ -583,6 +591,7 @@ leaflet(wmus) %>%
                           )
                         )
                       )
+# TODO:  add legend with hunting region colours
 ```
 
 ```{r}
@@ -603,10 +612,29 @@ hunting_regions <- gUnaryUnion(wmus, id = wmus@data$REGION_RESPONSIBLE)
 #plot(hunting_regions)
 # Access area of each region
 # UPDATE:  note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
+# Instead, from the rgeos package use gArea() (for projected coordinates) or from the geosphere package use areaPolygon() (for lat-long coordinates) (check the +proj= part of the SpatialPolygon file to find out which you are using):  https://stackoverflow.com/a/8708828
+
 # GetArea <- function(x) {
 #   x@area
 # }
-# hunting_region_areas<-sapply(hunting_regions@polygons, GetArea)
+hunting_region_areas <- areaPolygon(hunting_regions)/(1000^2) #sapply(hunting_regions@polygons, GetArea)
+wmu_hover_labels <- lapply(seq(nrow(wmus)), function(x) {
+  paste(
+           paste("<b>WMU # ", wmus$WILDLIFE_MGMT_UNIT_ID[x], "</b>", sep = ''),
+           paste(format(
+             round(as.numeric(wmus$FEATURE_AREA_SQM[x]/(1000^2)), 1),
+             nsmall = 1,
+             big.mark = ","
+             ), "km^2"),  # https://stackoverflow.com/a/29465942
+           paste("Game management zone: ", wmus$GAME_MANAGEMENT_ZONE_ID[x],
+                 " (", wmus$GAME_MANAGEMENT_ZONE_NAME[x], ")",
+                 sep = ''),
+           paste("Hunting region: ", wmus$REGION_RESPONSIBLE[x],
+                 " (", wmus$REGION_RESPONSIBLE_NAME[x], ")",
+                 sep = ''),
+         sep = "<br/>"
+  )
+})
 
 # Prepare labels
 # Find coordinates of centroid of each region:  https://gis.stackexchange.com/a/43558
@@ -615,20 +643,32 @@ hunting_region_static_labels <- gCentroid(hunting_regions, byid = TRUE) %>%
   cbind(seq(length(hunting_regions)))
 colnames(hunting_region_static_labels) <- c("long", "lat", "hunting_region")
 
+# Colours
+# Add data fields to the SpatialPolygons object, making it into a SpatialPolygonsDataFrame
+# https://willchernoff.com/2012/10/08/add-attribute-data-to-object-of-class-spatialpolygonsdataframe-in-r/
+# To get polygon IDs:  https://r.789695.n4.nabble.com/How-extract-the-names-of-ID-in-SpatialPolygons-object-td790614.html
+hunting_regions_data <- tibble(
+  sapply(slot(hunting_regions, "polygons"), function(x) slot(x, "ID"))  # polygon IDs
+)
+colnames(hunting_regions_data) = "polygon_id" 
+hunting_regions_data <- hunting_regions_data %>% 
+  mutate(polygon_colour = mapColours(polygon_id))
+hunting_regions_spolydf <- SpatialPolygonsDataFrame(hunting_regions, hunting_regions_data)
+
 # Show on map
-leaflet(hunting_regions) %>% 
+leaflet(hunting_regions_spolydf) %>% 
   addTiles(tilesURL) %>% 
   addPolygons(stroke = TRUE,
               weight = 1,
               opacity = 1,
               fillOpacity = 0.4,
-              #color = ~mapColours(id),
+              color = ~polygon_colour,
               # popup = ~paste(sep = "<br/>",
               #                paste("<b>Hunting region: ", ID, 
               #                      " (", ID, ")", "</b>",
               #                      sep = '')
               # ),
-              highlightOptions = highlightOptions(color = "red",
+              highlight = highlightOptions(color = "red",
                                                   fillColor = "red",
                                                   weight = 2,
                                                   bringToFront = TRUE)  # bring hovered-over polygon to front

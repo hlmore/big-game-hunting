@@ -22,6 +22,14 @@ https://catalogue.data.gov.bc.ca/dataset/hunting-sales-statistics-2005-2019
 BC Wildlife management units from:
 https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units
 
+Population estimates:
+GRIZZLY BEAR:  bc_grizzly_population_estimates_2015_and_2018_by_gbpu_population_sub_units from https://catalogue.data.gov.bc.ca/dataset/grizzly-bear-population-estimates
+MOOSE:  Kuzyk -- 2016 -- Provincial population and harvest estimates of moose in British Columbia
+ELK:  here, but no public access:  https://catalogue.data.gov.bc.ca/dataset/elk-cervus-elaphus-populations-scale-1-250-000
+MULE DEER:  maybe in the aerial survey of large mammals, but access restricted:  https://catalogue.data.gov.bc.ca/dataset/aerial-survey-large-mammals-1994-1997
+CARIBOU:  herd locations:  https://catalogue.data.gov.bc.ca/dataset/caribou-herd-locations-for-bc
+WILDLIFE SPECIES INVENTORY:  https://catalogue.data.gov.bc.ca/dataset/wildlife-species-inventory-results-by-area-all
+
 Author:  Heather More
 Started:  2020-11-24 
 
@@ -31,6 +39,10 @@ https://stackoverflow.com/a/4714080
 - $ accesses a named variable in an S4 object or a dataframe or a list
 
 TODO:
+- subdivide region 7
+- select wmu
+- select hunting region
+
 http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
 try getting population data from here:  http://a100.gov.bc.ca/pub/siwe/search_reset.do
 BC hunter expenditure survey:  http://www.env.gov.bc.ca/fw/wildlife/bc_hunt_value.html
@@ -81,7 +93,14 @@ wmuName <- "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
 tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
 
 # Which species to plot
-speciesToShow <- c("ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
+speciesToShow <- c("DEMU", "BEAB")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
+# Which WMU to plot -- as number, without dash, single digit as 0X
+wmuToShow <- c(735)
+# Which hunting region to plot -- as number
+huntingRegionToShow <- c(3)
+# Choose to filter by province totals, hunting regions, or wmus
+# Options:  "province", "huntingRegion", "wmu"
+filterBy <- "huntingRegion"
 
 # Manually define species based on info in xlsx:  https://stackoverflow.com/a/10679467
 # Get a list of all species codes by:  names(species_defs)
@@ -131,7 +150,6 @@ GetSpeciesColour <- function(speciesCode) {
 
 ```
 
-# ```{r, include=FALSE}
 ```{r}
 # Read in data
 df <- read_xlsx(file.path(dataPath, harvestName, 
@@ -152,15 +170,26 @@ print(paste('Species:  ', paste(lapply(unique(df$species), GetSpeciesName), coll
 print(paste('WMUs:  ', paste(length(unique(df$wmu)))))
 print(paste('Regions:  ', paste(length(unique(df$region)))))
 
-# Find number of rows that report data for entire province
-#unique(df$prov_flag)  # options are 0 or 9
-df_province <- df %>% filter(prov_flag==9)
-#unique(df_province$wmu)  # all wmu values are 999
+# Filter dataframe for data of interest
+if(filterBy=="province") {
+  # Find number of rows that report data for entire province
+  #unique(df$prov_flag)  # options are 0 or 9
+  #unique(df_province$wmu)  # all wmu values are 999 for province data
+  df_filtered <- df %>% filter(prov_flag==9)
+} else if(filterBy=="huntingRegion") {
+  df_filtered <- df %>% filter(wmu==100*huntingRegionToShow+99)
+} else if(filterBy=="wmu") {
+  df_filtered <- df %>% filter(wmu==wmuToShow)
+}
+
+
 ```
 
 ```{r}
 # Get data for plots
-to_plot <- df_province %>% 
+# to_plot <- df_province %>% 
+# to_plot <- df_wmu %>% 
+to_plot <- df_filtered %>% 
   filter(species %in% speciesToShow) %>% 
   rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
   mutate(
@@ -181,8 +210,7 @@ to_plot <- to_plot %>%
 
 ```
 
-<!-- Column {data-width=333} -->
-<!-- ------------------------------------- -->
+
 ```{r}
 # Total kills
 plot_prov_species <- ggplot(data = to_plot) +
@@ -202,8 +230,7 @@ plot_prov_species <- ggplot(data = to_plot) +
 print(plot_prov_species)
 ```
 
-<!-- Column {data-width=333} -->
-<!-- ------------------------------------- -->
+
 ```{r}
 # Total hunters
 plot_prov_hunters <- ggplot(data = to_plot) +
@@ -223,8 +250,7 @@ plot_prov_hunters <- ggplot(data = to_plot) +
 print(plot_prov_hunters)
 ```
 
-<!-- Column {data-width=333} -->
-<!-- ------------------------------------- -->
+
 ```{r}
 # Avg kills per hunter
 plot_prov_killsperhunter <- ggplot(data = to_plot) +
@@ -499,7 +525,7 @@ plot_prov_totalkills <- ggplot(data = total_allspecies) +
   theme_light() +
   labs(x = paste("Year"),
        y = paste("Total kills"),
-       title = paste("Total kills over all species from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total kills from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
 print(plot_prov_totalkills)
 ```
 
@@ -568,7 +594,7 @@ colnames(wmu_static_labels) <- c("long", "lat", "WMU")
 leaflet(wmus) %>% 
   addTiles(tilesURL) %>% 
   addPolygons(stroke = TRUE,
-              weight = 1,
+              weight = 2,
               opacity = 1,
               fillOpacity = 0.4,
               color = ~mapColours(REGION_RESPONSIBLE),
@@ -661,7 +687,7 @@ hunting_regions_spolydf <- SpatialPolygonsDataFrame(hunting_regions, hunting_reg
 leaflet(hunting_regions_spolydf) %>% 
   addTiles(tilesURL) %>% 
   addPolygons(stroke = TRUE,
-              weight = 1,
+              weight = 2,
               opacity = 1,
               fillOpacity = 0.4,
               color = ~polygon_colour,

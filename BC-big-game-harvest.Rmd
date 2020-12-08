@@ -40,8 +40,6 @@ https://stackoverflow.com/a/4714080
 
 TODO:
 - subdivide region 7
-- select wmu
-- select hunting region
 
 http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
 try getting population data from here:  http://a100.gov.bc.ca/pub/siwe/search_reset.do
@@ -96,8 +94,8 @@ tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map
 speciesToShow <- c("DEMU", "BEAB")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
 # Which WMU to plot -- as number, without dash, single digit as 0X
 wmuToShow <- c(735)
-# Which hunting region to plot -- as number
-huntingRegionToShow <- c(3)
+# Which hunting region to plot -- as number, or as string if 7A or 7B
+huntingRegionToShow <- c("7A")
 # Choose to filter by province totals, hunting regions, or wmus
 # Options:  "province", "huntingRegion", "wmu"
 filterBy <- "huntingRegion"
@@ -175,14 +173,18 @@ if(filterBy=="province") {
   # Find number of rows that report data for entire province
   #unique(df$prov_flag)  # options are 0 or 9
   #unique(df_province$wmu)  # all wmu values are 999 for province data
+  # wmu values are X00 for all of region X
+  # wmu values are 7A or 7B for all of region 7A or 7B
   df_filtered <- df %>% filter(prov_flag==9)
 } else if(filterBy=="huntingRegion") {
-  df_filtered <- df %>% filter(wmu==100*huntingRegionToShow+99)
+  if(is.character(huntingRegionToShow)) {
+    df_filtered <- df %>% filter(wmu==huntingRegionToShow)
+  } else if (is.numeric(huntingRegionToShow)) {
+    df_filtered <- df %>% filter(wmu==100*huntingRegionToShow+99)
+  }
 } else if(filterBy=="wmu") {
   df_filtered <- df %>% filter(wmu==wmuToShow)
 }
-
-
 ```
 
 ```{r}

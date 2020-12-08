@@ -37,6 +37,10 @@ NOTES:
 https://stackoverflow.com/a/4714080
 - @ accesses a slot in an S4 object like an object in spatialPolygons class.  Find slot names using slotNames(spPolygonObjectName).  Find contents of a slot using slot(spPolygonObjectName, "slotName").
 - $ accesses a named variable in an S4 object or a dataframe or a list
+- BC government has a Shiny app for this data at:  https://kootenaywildlife.shinyapps.io/BCHarvestData/
+- Francis Iredale (via Jim Gnapp) suggests for species population data:
+http://a100.gov.bc.ca/pub/siwe/search_reset.do
+https://a100.gov.bc.ca/pub/clir/enterCLIR.do?redirect=Y
 
 TODO:
 - subdivide region 7
@@ -86,6 +90,9 @@ dataColumnTypes <- c("numeric", # hunt year
 bcPopName <- "pop_bc_annual_estimates_clean.xlsx"
 popDataSheetName <- "data"
 wmuName <- "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
+wmuRegionConversionName <- "conversions_hunting-region-wmus.xlsx"
+conversionSheetName <- "data"
+conversionColumnTypes <- c("text", "numeric", "text", "text")
 # Site to preview different basemaps:  http://leaflet-extras.github.io/leaflet-providers/preview/index.html
 #tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
 tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
@@ -185,6 +192,14 @@ if(filterBy=="province") {
 } else if(filterBy=="wmu") {
   df_filtered <- df %>% filter(wmu==wmuToShow)
 }
+
+# Conversions between WMU numbers and hunting regions
+df_conversions <- read_xlsx(file.path(dataPath, wmuRegionConversionName, 
+                           fsep = .Platform$file.sep), 
+                sheet = conversionSheetName,
+                col_types = conversionColumnTypes
+                )
+
 ```
 
 ```{r}
@@ -390,7 +405,7 @@ print(plot_prov_speciesresfrac)
 ```{r}
 # Total resident and non-resident hunters
 # Note that each individual hunter is probably counted multiple times, because a lot of them probably have more than one tag
-hunters_residence <- df_province %>% 
+hunters_residence <- df_filtered %>% 
   group_by(hunt_year) %>% 
   summarise(
     across(resident_hunters, sum, na.rm=TRUE),
@@ -531,18 +546,6 @@ plot_prov_totalkills <- ggplot(data = total_allspecies) +
 print(plot_prov_totalkills)
 ```
 
-```{r, eval = FALSE}
-# Convert Jim's trapline data
-jim_trapline <- geojsonio::geojson_read(file.path(dataPath, "jim-trapline-map/WAA_TRAPLINE_AREAS_SP.geojson", 
-                           fsep = .Platform$file.sep), what = "sp")
-trapline_id = "TR0332T008"
-trapline_ind <- which(sapply(jim_trapline$TRAPLINE_AREA_IDENTIFIER, FUN = function(x) trapline_id %in% x))
-trapline_ind <- trapline_ind[[1]]
-trapline_df <- fortify(jim_trapline) %>% 
-  filter(id==trapline_ind) %>% 
-  select(id, long, lat)
-writeGPX(trapline_df, paste(trapline_id, "_boundary"), type = "t")  # https://rdrr.io/cran/pgirmess/man/writeGPX.html
-```
 
 ```{r}
 # Wildlife management units map
@@ -553,6 +556,22 @@ wmus <- geojsonio::geojson_read(file.path(dataPath, wmuName,
 # Simplify boundaries so they render faster
 # 963,312 bytes
 wmus <- rmapshaper::ms_simplify(wmus)
+
+# Add field to data to separate region 7 into 7A and 7B
+# Input:  WMU number as string
+# Output:  Hunting region number as string
+GetRegion <- function(wmuID) {
+  regionString <- df_conversions %>% 
+    filter(wmu_string==wmuID) %>% 
+    pull(region)  # return column as a vector
+  return(regionString)
+}
+wmu_region <- unlist(lapply(wmus$WILDLIFE_MGMT_UNIT_ID, GetRegion))
+# c<-sort(unique(df$wmu))
+# a<-sort(unique(df$region))
+# b<-sort(unique(wmus$WILDLIFE_MGMT_UNIT_ID))
+wmus@data$HUNTING_REGION <- wmu_region
+
 # Check total areas add to area of BC (944,735 km^2)
 # Note that the geojson areas include a bunch of water so we expect a higher estimate
 #testarea <- sum(wmus$FEATURE_AREA_SQM/(1000^2))
@@ -638,7 +657,7 @@ leaflet(wmus) %>%
 
 # https://gis.stackexchange.com/a/225731
 #region1 <- gUnaryUnion(wmus[wmus@data$REGION_RESPONSIBLE == 1, ])
-hunting_regions <- gUnaryUnion(wmus, id = wmus@data$REGION_RESPONSIBLE)
+hunting_regions <- gUnaryUnion(wmus, id = wmus@data$HUNTING_REGION)
 #plot(hunting_regions)
 # Access area of each region
 # UPDATE:  note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
@@ -672,7 +691,7 @@ hunting_region_static_labels <- gCentroid(hunting_regions, byid = TRUE) %>%
   as_tibble() %>% 
   cbind(seq(length(hunting_regions)))
 colnames(hunting_region_static_labels) <- c("long", "lat", "hunting_region")
-
+***************STARTHERE
 # Colours
 # Add data fields to the SpatialPolygons object, making it into a SpatialPolygonsDataFrame
 # https://willchernoff.com/2012/10/08/add-attribute-data-to-object-of-class-spatialpolygonsdataframe-in-r/

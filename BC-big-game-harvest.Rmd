@@ -6,47 +6,49 @@ output: html_notebook
 <!-- 
 Execute a chunk: click the *Run* button within the chunk or place your cursor inside it and press *Ctrl+Shift+Enter*.
 
-Add a new chunk:  click the *Insert Chunk* button on the toolbar or press *Ctrl+Alt+I*.
+Add a new chunk:  click the *Insert Chunk* button on the toolbar or press *Ctrl+Alt+I*. 
 
-This notebook analyzes data on big game harvesting in British Columbia, Canada.  It uses the 1976--2018 dataset from https://catalogue.data.gov.bc.ca/dataset/big-game-harvest-statistics-1976-2018  I used the .xlsx version of the dataset rather than the .csv version, because the csv had half the header text cut off and does not have descriptions of field codes.
-
-Annual population of BC from:  https://www2.gov.bc.ca/gov/content/data/statistics/people-population-community/population/population-estimates
-
-Hunting licence sales from:
-https://catalogue.data.gov.bc.ca/dataset/hunting-sales-statistics-2005-2019
-
-BC Wildlife management units from:
-https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units
-
-Population estimates:
-GRIZZLY BEAR:  bc_grizzly_population_estimates_2015_and_2018_by_gbpu_population_sub_units from https://catalogue.data.gov.bc.ca/dataset/grizzly-bear-population-estimates
-MOOSE:  Kuzyk -- 2016 -- Provincial population and harvest estimates of moose in British Columbia
-ELK:  here, but no public access:  https://catalogue.data.gov.bc.ca/dataset/elk-cervus-elaphus-populations-scale-1-250-000
-MULE DEER:  maybe in the aerial survey of large mammals, but access restricted:  https://catalogue.data.gov.bc.ca/dataset/aerial-survey-large-mammals-1994-1997
-CARIBOU:  herd locations:  https://catalogue.data.gov.bc.ca/dataset/caribou-herd-locations-for-bc
-WILDLIFE SPECIES INVENTORY:  https://catalogue.data.gov.bc.ca/dataset/wildlife-species-inventory-results-by-area-all
-
-Author:  Heather More
-Started:  2020-11-24 
-
-NOTES:
 https://stackoverflow.com/a/4714080
 - @ accesses a slot in an S4 object like an object in spatialPolygons class.  Find slot names using slotNames(spPolygonObjectName).  Find contents of a slot using slot(spPolygonObjectName, "slotName").
 - $ accesses a named variable in an S4 object or a dataframe or a list
-- BC government has a Shiny app for this data at:  https://kootenaywildlife.shinyapps.io/BCHarvestData/
-- Francis Iredale (via Jim Gnapp) suggests for species population data:
-http://a100.gov.bc.ca/pub/siwe/search_reset.do
-https://a100.gov.bc.ca/pub/clir/enterCLIR.do?redirect=Y
-
-http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
-try getting population data from here:  http://a100.gov.bc.ca/pub/siwe/search_reset.do
-BC hunter expenditure survey:  http://www.env.gov.bc.ca/fw/wildlife/bc_hunt_value.html
-BC harvest allocation policies:  http://www.env.gov.bc.ca/fw/wildlife/harvest_alloc/
-region and wmu info:  https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/regulations-synopsis
-BC regions map:  https://governmentofbc.maps.arcgis.com/home/webmap/viewer.html
-BC data sets:  catalogue.data.gov.bc.ca/dataset
-BC game management zones:  https://catalogue.data.gov.bc.ca/dataset/game-management-zones
 -->
+
+This notebook analyzes data on big game harvesting in British Columbia, Canada.  It uses the following publicly-available data from the Government of BC:
+
+* Hunting kills dataset covering 1976--2018 from: https://catalogue.data.gov.bc.ca/dataset/big-game-harvest-statistics-1976-2018
+  - I used the .xlsx version of the dataset rather than the .csv version, because the csv had half the header text cut off and does not have descriptions of field codes
+  - The BC government has a Shiny app for this data at:  https://kootenaywildlife.shinyapps.io/BCHarvestData/
+* Annual population of BC from:  https://www2.gov.bc.ca/gov/content/data/statistics/people-population-community/population/population-estimates
+* Hunting licence sales from:
+https://catalogue.data.gov.bc.ca/dataset/hunting-sales-statistics-2005-2019
+* BC Wildlife management units from:
+https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units
+
+Some possibilities for data on species populations (incomplete):
+
+* GRIZZLY BEAR:  bc_grizzly_population_estimates_2015_and_2018_by_gbpu_population_sub_units from https://catalogue.data.gov.bc.ca/dataset/grizzly-bear-population-estimates
+* MOOSE:  Kuzyk -- 2016 -- Provincial population and harvest estimates of moose in British Columbia
+* ELK:  here, but no public access:  https://catalogue.data.gov.bc.ca/dataset/elk-cervus-elaphus-populations-scale-1-250-000
+* MULE DEER:  maybe in the aerial survey of large mammals, but access restricted:  https://catalogue.data.gov.bc.ca/dataset/aerial-survey-large-mammals-1994-1997
+* CARIBOU:  herd locations:  https://catalogue.data.gov.bc.ca/dataset/caribou-herd-locations-for-bc
+* WILDLIFE SPECIES INVENTORY:  https://catalogue.data.gov.bc.ca/dataset/wildlife-species-inventory-results-by-area-all
+* Francis Iredale (via Jim Gnapp) suggests for species population data:
+  - http://a100.gov.bc.ca/pub/siwe/search_reset.do
+  - https://a100.gov.bc.ca/pub/clir/enterCLIR.do?redirect=Y
+  
+Other possible resources:
+
+* http://www.env.gov.bc.ca/fw/wildlife/management-issues/docs/kootenay_mule_deer_faq.pdf
+* try getting population data from here:  http://a100.gov.bc.ca/pub/siwe/search_reset.do
+* BC hunter expenditure survey:  http://www.env.gov.bc.ca/fw/wildlife/bc_hunt_value.html
+* BC harvest allocation policies:  http://www.env.gov.bc.ca/fw/wildlife/harvest_alloc/
+* region and wmu info:  https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/regulations-synopsis
+* BC regions map:  https://governmentofbc.maps.arcgis.com/home/webmap/viewer.html
+* BC data sets:  catalogue.data.gov.bc.ca/dataset
+* BC game management zones:  https://catalogue.data.gov.bc.ca/dataset/game-management-zones
+
+Author:  Heather More
+Started:  2020-11-24 
 
 ```{r}
 # INPUTS

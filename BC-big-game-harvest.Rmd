@@ -55,9 +55,21 @@ BC data sets:  catalogue.data.gov.bc.ca/dataset
 BC game management zones:  https://catalogue.data.gov.bc.ca/dataset/game-management-zones
 -->
 
-# ```{r setup, include=FALSE}
 ```{r}
-# Load packages
+# INPUTS
+# Which species to plot
+speciesToShow <- c("DEMU", "BEAB")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
+# Which WMU to plot -- as number, without dash, single digit as 0X
+wmuToShow <- c(332)
+# Which hunting region to plot -- as number, or as string if 7A or 7B
+huntingRegionToShow <- c("7A")
+# Choose to filter by province totals, hunting regions, or wmus
+# Options:  "province", "huntingRegion", "wmu"
+filterBy <- "wmu"
+```
+
+```{r}
+# LOAD PACKAGES
 library(readxl) # read Excel spreadsheets
 library(tidyverse) # data manipulation
 library(janitor) # data cleaning
@@ -67,15 +79,208 @@ library(rmapshaper)  # simplify areas on maps
 library(rgeos)  # functions for handling geographic regions
 library(geosphere)  # functions for handling sperical regions (i.e. lat/long coordinages)
 library(RColorBrewer)  # colour schemes
-#library(pgirmess)  # convert geojson to gpx
-#library(sp)  # spatial polygon analysis
 library(flexdashboard) # build output using knit button at top of RStudio
 library(htmltools)  # HTML formatting for map labels
 
-# Custom functions
-source("GetColour.R")
+# CUSTOM FUNCTIONS
+# Convert names of colours to hex
+source("GetColourHex.R")
+# Custom functions for this code
+source("CustomFunctions.R")
 
-# Define input parameters
+# INPUT FILES
+# Directory containing data
+data_dir = "D:/Documents/Code/BC big game harvesting/data"
+# Historical hunting kills
+data_huntingKills <- list(
+  "path" = data_dir,
+  "fileName" = "big-game-harvest-statistics-1976-2018.xlsx",
+  "sheetName" = "BGHS",
+  "columnTypes" = c("numeric",  # hunt year
+                     "text",  # species
+                     "text",  # CI
+                     "numeric",  # prov flag
+                     "text",  # WMU
+                     "text",  # region
+                     rep("numeric", 14)  # remaining columns
+                    )
+)
+# Historical population of BC
+data_bcPopulation <- list(
+  "path" = data_dir,
+  "fileName" = "pop_bc_annual_estimates_clean.xlsx",
+  "sheetName" = "data"
+)
+# Lists of WMUs and their corresponding hunting regions
+data_wmuHuntingRegions <- list(
+  "path" = data_dir,
+  "fileName" = "conversions_hunting-region-wmus.xlsx",
+  "sheetName" = "data",
+  "columnTypes" = c("text",  # WMU id as string
+                    "numeric",  # WMU id as int
+                    "text",  # hunting region
+                    "text"  # notes
+                    )
+)
+# List of species included in the hunting dataset and their attributes
+data_species <- list(
+  "path" = data_dir,
+  "fileName" = "conversions_species.xlsx",
+  "sheetName" = "data"
+)
+# Map of WMUs
+map_wmu <- list(
+  "path" = data_dir,
+  "fileName" = "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson"
+)
+
+# LINKS
+# Site to preview different basemaps:  http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+#tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+```
+
+```{r}
+# LOAD DATA
+
+# Hunting kills
+df_huntingKills <- ReadExcel(data_huntingKills)
+
+# BC population
+df_pop <- ReadExcel(data_bcPopulation)
+
+# Conversions between WMU numbers and hunting regions
+df_conversions <- ReadExcel(data_wmuHuntingRegions)
+
+# Species names and characteristics
+df_species <- ReadExcel(data_species)
+
+# Map of wildlife management units
+# https://rstudio.github.io/leaflet/json.html
+# 4,535,784 bytes
+wmus <- geojsonio::geojson_read(file.path(map_wmu[["path"]], map_wmu[["fileName"]], 
+                           fsep = .Platform$file.sep), what = "sp")
+# Simplify boundaries so they render faster
+# 963,312 bytes
+wmus <- rmapshaper::ms_simplify(wmus)
+
+```
+```{r}
+# FUNCTIONS
+
+# Look up full name of species based on code
+# Input is species code as string, e.g. "BEAB"
+# Output is species name as string, e.g. "Black bear"
+GetSpeciesName <- function(speciesCode) {
+  species_name <- df_species %>% 
+    filter(code==speciesCode) %>% 
+    pull(name)
+  return(species_name)
+}
+
+# Find colour corresponding to species
+# Input is species code as string, e.g. "BEAB"
+# Output is colour as hex string, e.g. "#000000"
+GetSpeciesColour <- function(speciesCode) {
+  species_colour <- df_species %>% 
+    filter(code==speciesCode) %>% 
+    pull(colour) %>% 
+    GetColourHex()
+  return(species_colour)
+}
+
+# Plot style
+# Input is ggplot object
+# No output, just modifies plot aesthetics etc.
+```
+
+```{r}
+# INVESTIGATE DATA
+print(paste("Hunt years:  ", 
+            paste(min(df_huntingKills$hunt_year)), 
+            "--", 
+            paste(max(df_huntingKills$hunt_year)), 
+            collapse = ''
+            )
+      )
+print(paste('Species:  ', 
+            paste(lapply(unique(df_huntingKills$species), GetSpeciesName), 
+                  collapse = ', ')
+            )
+      )
+print(paste('WMUs:  ', 
+            paste(length(unique(df_huntingKills$wmu)))
+            )
+      )
+print(paste('Regions:  ', 
+            paste(length(unique(df_huntingKills$region)))
+            )
+      )
+```
+
+```{r}
+# FILTER
+
+# Filter hunting data by selected region(s) and species
+# Filter by region to show -- whole-province, selected WMU(s), or selected hunting region(s)
+# df_huntingKills$prov_flag
+#     9 for whole-province data
+#     0 otherwise
+# df_huntingKills$wmu
+#     999 for whole-province data
+#     X00 for all of region X
+#     7A or 7B for all of region 7A or 7B
+if (filterBy=="province") {
+  df_filtered <- df_huntingKills %>% 
+    filter(prov_flag==9)
+} else if(filterBy=="huntingRegion") {
+  if(is.character(huntingRegionToShow)) {
+    df_filtered <- df_huntingKills %>% 
+      filter(wmu==huntingRegionToShow)
+  } else if (is.numeric(huntingRegionToShow)) {
+    df_filtered <- df_huntingKills %>% 
+      filter(wmu==(100*huntingRegionToShow + 99))
+  }
+} else if(filterBy=="wmu") {
+  df_filtered <- df_huntingKills %>% 
+    filter(wmu==wmuToShow)
+}
+# Filter by species to show
+df_filtered <- df_filtered %>% 
+  filter(species %in% speciesToShow)
+
+# Filter population data so years match hunting data
+df_pop_years <- df_pop %>% 
+  filter(year >= min(df_filtered$hunt_year) 
+         & year <= max(df_filtered$hunt_year)) %>% 
+  rename(population_human = population)
+```
+
+```{r}
+# ADD OTHER VARIABLES OF INTEREST TO DATAFRAME
+
+# Add population data
+df_filtered <- df_filtered %>% 
+  left_join(df_pop_years, by = c("hunt_year" = "year"))
+
+# Do some calculations
+df_filtered <- df_filtered %>% 
+  rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
+  mutate(
+    total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),
+    total_hunters = sum(resident_hunters, non_resident_hunters, na.rm=TRUE),
+    total_days = sum(resident_days, non_resident_days, na.rm=TRUE),
+    kills_per_hunter = total_kills/total_hunters,
+    days_per_hunter = total_days/total_hunters,
+    days_per_kill = total_days/total_kills)
+```
+
+
+
+
+
+
+```{r}
 # Location of data
 dataPath  <- "D:/Documents/Code/BC big game harvesting/data"
 harvestName  <- "big-game-harvest-statistics-1976-2018.xlsx"
@@ -176,7 +381,7 @@ print(paste('WMUs:  ', paste(length(unique(df$wmu)))))
 print(paste('Regions:  ', paste(length(unique(df$region)))))
 
 # Filter dataframe for data of interest
-if(filterBy=="province") {
+if (filterBy=="province") {
   # Find number of rows that report data for entire province
   #unique(df$prov_flag)  # options are 0 or 9
   #unique(df_province$wmu)  # all wmu values are 999 for province data
@@ -227,119 +432,130 @@ to_plot <- to_plot %>%
 
 ```
 
+```{r}
+# PLOTTING FUNCTIONS
+
+# Theme
+UseTheme <- function() {
+    theme_light()
+}
+
+# Line and point styles
+FormatLines <- function() {
+  geom_line()
+}
+FormatPoints <- function() {
+  geom_point(size=2, alpha=0.7)
+}
+
+# Function to use species-specific colours
+UseSpeciesColours <- function() {
+     scale_colour_manual(
+       name = "Species",  # legend title
+       values = paste(lapply(speciesToShow, GetSpeciesColour)),  # colour hex values
+       breaks = speciesToShow,  # species codes corresponding to each hex value
+       labels = paste(lapply(speciesToShow, GetSpeciesName))  # species names for legend
+     )
+}
+
+# Text identifying year range
+YearRangeAsText <- function() {
+   paste("from", 
+         paste(min(df_filtered$hunt_year)), 
+         "to", 
+         paste(max(df_filtered$hunt_year))
+   )
+}
+```
 
 ```{r}
 # Total kills
-plot_prov_species <- ggplot(data = to_plot) +
+plot_prov_species <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = total_kills, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Total # kills"),
-       title = paste("Total kills from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total kills", YearRangeAsText())
+  )
 print(plot_prov_species)
 ```
 
 
 ```{r}
 # Total hunters
-plot_prov_hunters <- ggplot(data = to_plot) +
+plot_prov_hunters <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = total_hunters, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Total # hunters"),
-       title = paste("Total hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total hunters", YearRangeAsText())
+  )
 print(plot_prov_hunters)
 ```
 
 
 ```{r}
 # Avg kills per hunter
-plot_prov_killsperhunter <- ggplot(data = to_plot) +
+plot_prov_killsperhunter <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = kills_per_hunter, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg kills per hunter"),
-       title = paste("Average kills per hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average kills per hunter", YearRangeAsText())
+  )
 print(plot_prov_killsperhunter)
 ```
 ```{r}
 # Total hunting days
-plot_prov_totaldays <- ggplot(data = to_plot) +
+plot_prov_totaldays <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = total_days, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Total # hunting days"),
-       title = paste("Total # hunting days", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total # hunting days", YearRangeAsText())
+  )
 print(plot_prov_totaldays)
 ```
 
 ```{r}
 # Avg hunting days per hunter
-plot_prov_daysperhunter <- ggplot(data = to_plot) +
+plot_prov_daysperhunter <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = days_per_hunter, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg hunt days per hunter"),
-       title = paste("Average # hunting days per hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average # hunting days per hunter", YearRangeAsText())
+  )
 print(plot_prov_daysperhunter)
 ```
 
 ```{r}
 # Avg hunting days per kill
-plot_prov_daysperhunter <- ggplot(data = to_plot) +
+plot_prov_daysperhunter <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = days_per_kill, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg hunt days per kill"),
-       title = paste("Average # hunting days per kill from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average # hunting days per kill", YearRangeAsText())
+  )
 print(plot_prov_daysperhunter)
 ```
 
@@ -347,58 +563,46 @@ print(plot_prov_daysperhunter)
 
 ```{r}
 # Resident hunters of each species
-plot_prov_speciesres <- ggplot(data = to_plot) +
+plot_prov_speciesres <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = resident_hunters, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("# resident hunters"),
-       title = paste("Resident hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Resident hunters", YearRangeAsText())
+  )
 print(plot_prov_speciesres)
 ```
 
 ```{r}
 # Non-resident hunters of each species
-plot_prov_speciesnonres <- ggplot(data = to_plot) +
+plot_prov_speciesnonres <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = non_resident_hunters, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("# non-resident hunters"),
-       title = paste("Non-resident hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Non-resident hunters", YearRangeAsText())
+  )
 print(plot_prov_speciesnonres)
 ```
 
 ```{r}
 # Resident hunters of each species, normalized to BC population
-plot_prov_speciesresfrac <- ggplot(data = to_plot) +
+plot_prov_speciesresfrac <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = resident_hunters/population_human, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("# resident hunters/total BC population"),
-       title = paste("Resident hunters as fraction of BC population from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Resident hunters as fraction of BC population", YearRangeAsText())
+  )
 print(plot_prov_speciesresfrac)
 ```
 
@@ -416,12 +620,13 @@ hunters_residence <- df_filtered %>%
 
 plot_prov_totalresnonres <- ggplot(data = hunters_residence) +
   aes(x = hunt_year, y = n_hunters, color = residency) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
   labs(x = paste("Year"),
        y = paste("# hunters"),
-       title = paste("Total resident and non-resident hunters", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total resident and non-resident hunters", YearRangeAsText())
+  )
 print(plot_prov_totalresnonres)
 ```
 
@@ -430,104 +635,90 @@ print(plot_prov_totalresnonres)
 ```{r}
 plot_prov_totalresfrac <- ggplot(data = filter(hunters_residence, residency == "resident_hunters")) +
   aes(x = hunt_year, y = n_hunters/population_human) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
   labs(x = paste("Year"),
        y = paste("# hunters/BC population"),
-       title = paste("Total resident hunters as a fraction of BC population", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total resident hunters as a fraction of BC population", YearRangeAsText())
+  )
 print(plot_prov_totalresfrac)
 ```
 
 ```{r}
 plot_bcpop <- ggplot(data = df_pop_years) +
   aes(x = year, y = population_human) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
   labs(x = paste("Year"),
        y = paste("BC population"),
-       title = paste("BC population", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("BC population", YearRangeAsText())
+  )
 print(plot_bcpop)
 ```
 
 
 ```{r}
 # Avg kills per hunter, separated by hunter residency
-plot_prov_killsperhunter_resident <- ggplot(data = to_plot) +
+plot_prov_killsperhunter_resident <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = resident_kills/resident_hunters, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg kills per resident hunter"),
-       title = paste("Average kills per resident hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average kills per resident hunter", YearRangeAsText())
+  )
 print(plot_prov_killsperhunter_resident)
 ```
 
 ```{r}
-plot_prov_killsperhunter_nonresident <- ggplot(data = to_plot) +
+plot_prov_killsperhunter_nonresident <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = non_resident_kills/non_resident_hunters, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg kills per non-resident hunter"),
-       title = paste("Average kills per non-resident hunter from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average kills per non-resident hunter", YearRangeAsText())
+  )
 print(plot_prov_killsperhunter_nonresident)
 ```
 
 ```{r}
 # Avg hunting days per kill, separated by hunter residency
-plot_prov_daysperhunter_resident <- ggplot(data = to_plot) +
+plot_prov_daysperhunter_resident <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = resident_days/resident_kills, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg hunt days per kill"),
-       title = paste("Average # hunting days per kill for resident hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average # hunting days per kill for resident hunters", YearRangeAsText())
+  )
 print(plot_prov_daysperhunter_resident)
 ```
 
 ```{r}
-plot_prov_daysperhunter_nonresident <- ggplot(data = to_plot) +
+plot_prov_daysperhunter_nonresident <- ggplot(data = df_filtered) +
   aes(x = hunt_year, y = non_resident_days/non_resident_kills, color = species) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
-  scale_colour_manual(
-    name = "Species",
-    values = paste(sapply(names(species_colours), GetSpeciesColour)),
-    breaks = names(species_colours),
-    labels = paste(lapply(names(species_colours[]), GetSpeciesName))
-  ) +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
+  UseSpeciesColours() +
   labs(x = paste("Year"),
        y = paste("Avg hunt days per kill"),
-       title = paste("Average # hunting days per kill for non-resident hunters from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Average # hunting days per kill for non-resident hunters", YearRangeAsText())
+  )
 print(plot_prov_daysperhunter_nonresident)
 ```
 
 ```{r}
-total_allspecies <- to_plot %>% 
+total_allspecies <- df_filtered %>% 
   group_by(hunt_year) %>% 
   summarise(
     across(resident_kills, sum, na.rm=TRUE),
@@ -537,17 +728,19 @@ total_allspecies <- to_plot %>%
 
 plot_prov_totalkills <- ggplot(data = total_allspecies) +
   aes(x = hunt_year, y = n_kills, color = residency) +
-  geom_point(size=2, alpha=0.7) +
-  geom_line() +
-  theme_light() +
+  FormatLines() +
+  FormatPoints() +
+  UseTheme() +
   labs(x = paste("Year"),
        y = paste("Total kills"),
-       title = paste("Total kills from", paste(min(to_plot$hunt_year)), "to", paste(max(to_plot$hunt_year))))
+       title = paste("Total kills", YearRangeAsText())
+  )
 print(plot_prov_totalkills)
 ```
 
 
 ```{r}
+**************START HERE
 # Wildlife management units map
 # https://rstudio.github.io/leaflet/json.html
 # 4,535,784 bytes

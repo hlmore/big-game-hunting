@@ -1,10 +1,6 @@
 ---
 title: "BC big game harvesting"
 output: html_notebook
-# output: 
-#   flexdashboard::flex_dashboard
-#   #flexdashboard::flex_dashboard:
-#     #orientation: columns
 ---
 
 <!-- 
@@ -195,9 +191,6 @@ GetSpeciesColour <- function(speciesCode) {
   return(species_colour)
 }
 
-# Plot style
-# Input is ggplot object
-# No output, just modifies plot aesthetics etc.
 ```
 
 ```{r}
@@ -279,163 +272,6 @@ df_filtered <- df_filtered %>%
     kills_per_hunter = total_kills/total_hunters,
     days_per_hunter = total_days/total_hunters,
     days_per_kill = total_days/total_kills)
-```
-
-
-
-
-
-
-<!-- ```{r} -->
-<!-- # Location of data -->
-<!-- dataPath  <- "D:/Documents/Code/BC big game harvesting/data" -->
-<!-- harvestName  <- "big-game-harvest-statistics-1976-2018.xlsx" -->
-<!-- dataSheetName <- "BGHS"  # data -->
-<!-- dataColumnTypes <- c("numeric", # hunt year -->
-<!--                      "text", # species -->
-<!--                      "text", # CI -->
-<!--                      "numeric", # prov flag -->
-<!--                      "text", # WMU -->
-<!--                      "text", # region -->
-<!--                      rep("numeric", 14)) # remaining columns -->
-<!-- bcPopName <- "pop_bc_annual_estimates_clean.xlsx" -->
-<!-- popDataSheetName <- "data" -->
-<!-- wmuName <- "wmu-map/WAA_WILDLIFE_MGMT_UNITS_SVW.geojson" -->
-<!-- wmuRegionConversionName <- "conversions_hunting-region-wmus.xlsx" -->
-<!-- conversionSheetName <- "data" -->
-<!-- conversionColumnTypes <- c("text", "numeric", "text", "text") -->
-<!-- # Site to preview different basemaps:  http://leaflet-extras.github.io/leaflet-providers/preview/index.html -->
-<!-- #tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}" -->
-<!-- tilesURL <- "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" -->
-
-<!-- # Which species to plot -->
-<!-- speciesToShow <- c("DEMU", "BEAB")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG") -->
-<!-- # Which WMU to plot -- as number, without dash, single digit as 0X -->
-<!-- wmuToShow <- c(735) -->
-<!-- # Which hunting region to plot -- as number, or as string if 7A or 7B -->
-<!-- huntingRegionToShow <- c("7A") -->
-<!-- # Choose to filter by province totals, hunting regions, or wmus -->
-<!-- # Options:  "province", "huntingRegion", "wmu" -->
-<!-- filterBy <- "huntingRegion" -->
-
-<!-- # Manually define species based on info in xlsx:  https://stackoverflow.com/a/10679467 -->
-<!-- # Get a list of all species codes by:  names(species_defs) -->
-<!-- # Access a species name by:  species_defs[["CODE"]] -->
-<!-- species_defs <- list( -->
-<!--   "ELK" = "Elk", -->
-<!--   "DEMU" = "Mule deer", -->
-<!--   "DEWT" = "White-tailed deer", -->
-<!--   "MOOS" = "Moose", -->
-<!--   "BEAB" = "Black bear", -->
-<!--   "WOLF" = "Wolf", -->
-<!--   "CARI" = "Caribou", -->
-<!--   "GOAT" = "Goat", -->
-<!--   "SHEE" = "Sheep", -->
-<!--   "BEAG" = "Grizzly bear", -->
-<!--   "COUG" = "Cougar" -->
-<!-- ) -->
-<!-- # Function to look up full name of species based on code -->
-<!-- GetSpeciesName <- function(speciesCode) { -->
-<!--   species_name <- species_defs[[speciesCode]] -->
-<!--   return(species_name) -->
-<!-- } -->
-
-<!-- # Colours for plotting -->
-<!-- species_colours <- list( -->
-<!--   "MOOS" = "pink", # "Moose", -->
-<!--   "ELK" = "rust", # "Elk", -->
-<!--   "CARI" = "gold2", # "Caribou", -->
-<!--   "DEMU" = "yellow2", # "Mule deer", -->
-<!--   "DEWT" = "yellow", # "White-tailed deer", -->
-
-<!--   "GOAT" = "light green", # "Goat", -->
-<!--   "SHEE" = "dark green", # "Sheep", -->
-
-<!--   "BEAB" = "black", # "Black bear", -->
-<!--   "BEAG" = "grey", # "Grizzly bear", -->
-
-<!--   "WOLF" = "light blue", # "Wolf", -->
-
-<!--   "COUG" = "dark blue" # Cougar" -->
-<!-- ) -->
-<!-- # Function to look up full name of species based on code -->
-<!-- GetSpeciesColour <- function(speciesCode) { -->
-<!--   species_colour <- GetColour(species_colours[[speciesCode]]) -->
-<!--   return(species_colour) -->
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- # Read in data -->
-<!-- df <- read_xlsx(file.path(dataPath, harvestName,  -->
-<!--                            fsep = .Platform$file.sep),  -->
-<!--                 sheet = dataSheetName, -->
-<!--                 col_types = dataColumnTypes # specify type of data in each column, or it will use logical for some -->
-<!--                 ) %>%  -->
-<!--   clean_names()  # make column names nice -->
-
-<!-- df_pop <- read_xlsx(file.path(dataPath, bcPopName,  -->
-<!--                            fsep = .Platform$file.sep), -->
-<!--                     sheet = popDataSheetName) %>%  -->
-<!--   clean_names()  # make column names nice -->
-
-<!-- # Investigate data -->
-<!-- print(paste("Hunt years:  ", paste(min(df$hunt_year)), "--", paste(max(df$hunt_year)), collapse = '')) -->
-<!-- print(paste('Species:  ', paste(lapply(unique(df$species), GetSpeciesName), collapse = ', '))) -->
-<!-- print(paste('WMUs:  ', paste(length(unique(df$wmu))))) -->
-<!-- print(paste('Regions:  ', paste(length(unique(df$region))))) -->
-
-<!-- # Filter dataframe for data of interest -->
-<!-- if (filterBy=="province") { -->
-<!--   # Find number of rows that report data for entire province -->
-<!--   #unique(df$prov_flag)  # options are 0 or 9 -->
-<!--   #unique(df_province$wmu)  # all wmu values are 999 for province data -->
-<!--   # wmu values are X00 for all of region X -->
-<!--   # wmu values are 7A or 7B for all of region 7A or 7B -->
-<!--   df_filtered <- df %>% filter(prov_flag==9) -->
-<!-- } else if(filterBy=="huntingRegion") { -->
-<!--   if(is.character(huntingRegionToShow)) { -->
-<!--     df_filtered <- df %>% filter(wmu==huntingRegionToShow) -->
-<!--   } else if (is.numeric(huntingRegionToShow)) { -->
-<!--     df_filtered <- df %>% filter(wmu==100*huntingRegionToShow+99) -->
-<!--   } -->
-<!-- } else if(filterBy=="wmu") { -->
-<!--   df_filtered <- df %>% filter(wmu==wmuToShow) -->
-<!-- } -->
-
-<!-- # Conversions between WMU numbers and hunting regions -->
-<!-- df_conversions <- read_xlsx(file.path(dataPath, wmuRegionConversionName,  -->
-<!--                            fsep = .Platform$file.sep),  -->
-<!--                 sheet = conversionSheetName, -->
-<!--                 col_types = conversionColumnTypes -->
-<!--                 ) -->
-
-<!-- ``` -->
-
-```{r}
-# # Get data for plots
-# # to_plot <- df_province %>% 
-# # to_plot <- df_wmu %>% 
-# to_plot <- df_filtered %>% 
-#   filter(species %in% speciesToShow) %>% 
-#   rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
-#   mutate(
-#     total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),
-#     total_hunters = sum(resident_hunters, non_resident_hunters, na.rm=TRUE),
-#     total_days = sum(resident_days, non_resident_days, na.rm=TRUE),
-#     kills_per_hunter = total_kills/total_hunters,
-#     days_per_hunter = total_days/total_hunters,
-#     days_per_kill = total_days/total_kills)
-# 
-# df_pop_years <- df_pop %>% 
-#   filter(year >= min(to_plot$hunt_year) 
-#          & year <= max(to_plot$hunt_year)) %>% 
-#   rename(population_human = population)
-# to_plot <- to_plot %>% 
-#   left_join(df_pop_years, by = c("hunt_year" = "year"))  # https://dplyr.tidyverse.org/articles/two-table.html
-
-
 ```
 
 ```{r}
@@ -860,103 +696,6 @@ leaflet(sp_wmus) %>%
 
 ```
 
-
-```{r}
-# # Wildlife management units map
-# # https://rstudio.github.io/leaflet/json.html
-# # 4,535,784 bytes
-# wmus <- geojsonio::geojson_read(file.path(dataPath, wmuName, 
-#                            fsep = .Platform$file.sep), what = "sp")
-# # Simplify boundaries so they render faster
-# # 963,312 bytes
-# wmus <- rmapshaper::ms_simplify(wmus)
-# 
-# # Add field to data to separate region 7 into 7A and 7B
-# # Input:  WMU number as string
-# # Output:  Hunting region number as string
-# GetRegion <- function(wmuID) {
-#   regionString <- df_conversions %>% 
-#     filter(wmu_string==wmuID) %>% 
-#     pull(region)  # return column as a vector
-#   return(regionString)
-# }
-# wmu_region <- unlist(lapply(wmus$WILDLIFE_MGMT_UNIT_ID, GetRegion))
-# # c<-sort(unique(df$wmu))
-# # a<-sort(unique(df$region))
-# # b<-sort(unique(wmus$WILDLIFE_MGMT_UNIT_ID))
-# wmus@data$HUNTING_REGION <- wmu_region
-# 
-# # Check total areas add to area of BC (944,735 km^2)
-# # Note that the geojson areas include a bunch of water so we expect a higher estimate
-# #testarea <- sum(wmus$FEATURE_AREA_SQM/(1000^2))
-# # Show possible colour schemes
-# #display.brewer.all()
-# # Generate palette
-# colourPalette <- brewer.pal(length(unique(wmus$REGION_RESPONSIBLE)),
-#                          "Set2")
-# colourLevels <- unique(wmus$REGION_RESPONSIBLE)
-# mapColours <- colorFactor(
-#   palette = colourPalette,
-#   levels = colourLevels
-#   )
-# # Prepare labels
-# #https://stackoverflow.com/a/43155126
-# wmu_hover_labels <- lapply(seq(nrow(wmus)), function(x) {
-#   paste(
-#            paste("<b>WMU # ", wmus$WILDLIFE_MGMT_UNIT_ID[x], "</b>", sep = ''),
-#            paste(format(
-#              round(as.numeric(wmus$FEATURE_AREA_SQM[x]/(1000^2)), 1),
-#              nsmall = 1,
-#              big.mark = ","
-#              ), "km^2"),  # https://stackoverflow.com/a/29465942
-#            paste("Game management zone: ", wmus$GAME_MANAGEMENT_ZONE_ID[x],
-#                  " (", wmus$GAME_MANAGEMENT_ZONE_NAME[x], ")",
-#                  sep = ''),
-#            paste("Hunting region: ", wmus$REGION_RESPONSIBLE[x],
-#                  " (", wmus$REGION_RESPONSIBLE_NAME[x], ")",
-#                  sep = ''),
-#          sep = "<br/>"
-#   )
-# })
-# wmu_static_labels <- lapply(wmus@polygons, function(x) {x@labpt}) %>% 
-#   unlist() %>% 
-#   matrix(., nrow = length(.), ncol = 2, byrow = TRUE) %>% 
-#   as_tibble() %>% 
-#   cbind(wmus$WILDLIFE_MGMT_UNIT_ID)
-# colnames(wmu_static_labels) <- c("long", "lat", "WMU")
-#   
-# # Show on map
-# leaflet(wmus) %>% 
-#   addTiles(tilesURL) %>% 
-#   addPolygons(stroke = TRUE,
-#               weight = 2,
-#               opacity = 1,
-#               fillOpacity = 0.4,
-#               color = ~mapColours(REGION_RESPONSIBLE),
-#               label = lapply(wmu_hover_labels, htmltools::HTML),
-#               labelOptions = labelOptions(
-#                 direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
-#   highlight = highlightOptions(color = "red",
-#                                       fillColor = "red",
-#                                       weight = 2,
-#                                       bringToFront = TRUE)  # bring hovered-over polygon to front
-#   ) %>% 
-#   addLabelOnlyMarkers(data = wmu_static_labels,  # labels always on polygons
-#                       lng = ~long, 
-#                       lat = ~lat, 
-#                       label = ~WMU,
-#                       labelOptions = labelOptions(
-#                         noHide = TRUE, 
-#                         direction = 'auto', 
-#                         textOnly = TRUE,
-#                         style = list(
-#                           "color" = "grey"
-#                           )
-#                         )
-#                       )
-# # TODO:  add legend with hunting region colours
-```
-
 ```{r}
 # SHOW HUNTING REGIONS ON MAP
 
@@ -1021,24 +760,6 @@ hunting_region_hover_labels <- lapply(seq(nrow(sp_huntingRegions)),
                                sep = "<br/>"
                              )
                            })
-
-# # Prepare labels
-# # Find coordinates of centroid of each region:  https://gis.stackexchange.com/a/43558
-# hunting_region_static_labels <- gCentroid(hunting_regions, byid = TRUE) %>% 
-#   as_tibble() %>% 
-#   cbind(seq(length(hunting_regions)))
-# colnames(hunting_region_static_labels) <- c("long", "lat", "hunting_region")
-# # Colours
-# # Add data fields to the SpatialPolygons object, making it into a SpatialPolygonsDataFrame
-# # https://willchernoff.com/2012/10/08/add-attribute-data-to-object-of-class-spatialpolygonsdataframe-in-r/
-# # To get polygon IDs:  https://r.789695.n4.nabble.com/How-extract-the-names-of-ID-in-SpatialPolygons-object-td790614.html
-# hunting_regions_data <- tibble(
-#   sapply(slot(hunting_regions, "polygons"), function(x) slot(x, "ID"))  # polygon IDs
-# )
-# # colnames(hunting_regions_data) = "polygon_id" 
-# hunting_regions_data <- hunting_regions_data %>%
-#   mutate(polygon_colour = mapColours(polygon_id))
-# hunting_regions_spolydf <- SpatialPolygonsDataFrame(hunting_regions, hunting_regions_data)
 
 # Show on map
 leaflet(sp_huntingRegions) %>% 

@@ -202,6 +202,25 @@ RenameResidentEntries <- function(x) {
   return(x)
 }
 
+# Find hunting region of a WMU
+# Input:  WMU number as string
+# Output:  Hunting region number as string
+GetRegionCode <- function(wmuID) {
+  regionString <- df_wmuRegions %>% 
+    filter(wmu_string==wmuID) %>% 
+    pull(region)  # return column as a vector
+  return(regionString)
+}
+# Get name of hunting region from region number
+# Input:  Hunting region number as string
+# Output:  Hunting region name as string
+GetRegionName <- function(regionID) {
+  regionName <- df_regionNames %>% 
+    filter(region==regionID) %>% 
+    pull(name)  # return column as a vector
+  return(regionName)
+}
+
 ```
 
 ```{r}
@@ -314,6 +333,61 @@ df_year_totals <- df_filtered %>%
   mutate(kill_residency = NULL) %>% 
   rename(residency = hunter_residency)
 ```
+```{r}
+# ADD VARIABLES TO MAP DATA AND GENERATE MAP OF HUNTING REGIONS
+#
+# WMU codes in hunting data are e.g. 101, 115
+#   - codes ending in 00 denote values from that hunting region but unknown WMU
+#   - codes ending in 99 denote totals for that hunting region
+#   - code 999 is province-wide total
+# WMU codes in geojson are e.g. 1-1, 1-15
+
+# Check total areas add to area of BC (944,735 km^2)
+# Note that the geojson areas include a bunch of water so we expect a higher estimate
+#testarea <- sum(wmus$FEATURE_AREA_SQM/(1000^2))
+
+# ADD DATA TO WMU MAP
+
+# Add fields to separate region 7 into 7A and 7B (region code and region name)
+sp_wmus@data$HUNTING_REGION <- unlist(lapply(sp_wmus$WILDLIFE_MGMT_UNIT_ID, 
+                                          GetRegionCode))
+sp_wmus@data$HUNTING_REGION_NAME <- unlist(lapply(sp_wmus$HUNTING_REGION, 
+                                          GetRegionName))
+
+# GENERATE HUNTING REGION MAP
+
+# Group WMU boundaries into hunting regions
+# https://gis.stackexchange.com/a/225731
+sp_huntingRegions <- gUnaryUnion(sp_wmus, id = sp_wmus@data$HUNTING_REGION)
+
+# ADD DATA TO HUNTING REGION MAP
+
+# Add dataframe of hunting region IDs to SpatialPolygons object; this turns it into a SpatialPolygonsDataFrame and allows us to add data for each region
+# - ID of each polygon is hunting region.
+# - dataframe column names will be converted to SpatialPolygons tags
+# - dataframe row names must be the same as polygon IDs
+# Resources:
+# - https://willchernoff.com/2012/10/08/add-attribute-data-to-object-of-class-spatialpolygonsdataframe-in-r/
+# - to get polygon IDs:  https://r.789695.n4.nabble.com/How-extract-the-names-of-ID-in-SpatialPolygons-object-td790614.html
+hunting_regions_data <- tibble(
+  sapply(slot(sp_huntingRegions, "polygons"), function(x) slot(x, "ID"))
+  )
+colnames(hunting_regions_data) <- c("HUNTING_REGION_ID")
+rownames(hunting_regions_data) <- hunting_regions_data$HUNTING_REGION_ID
+# Combind SpatialPolygons object and dataframe to generate SpatialPolygonsDataFrame
+sp_huntingRegions <- SpatialPolygonsDataFrame(sp_huntingRegions, 
+                                            hunting_regions_data
+                                            )
+
+# NAME of each hunting region
+sp_huntingRegions@data$HUNTING_REGION_NAME <- unlist(lapply(sp_huntingRegions$HUNTING_REGION_ID, 
+                                          GetRegionName))
+# AREA of each hunting region (km^2)
+# Note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
+# Instead, from the rgeos package use gArea() (for projected coordinates) or from the geosphere package use areaPolygon() (for lat-long coordinates) (check the +proj= part of the SpatialPolygon file to find out which you are using):  https://stackoverflow.com/a/8708828
+sp_huntingRegions@data$HUNTING_REGION_AREA <- areaPolygon(sp_huntingRegions)/(1000^2)
+
+```
 
 ```{r}
 # PLOTTING FUNCTIONS
@@ -349,6 +423,14 @@ YearRangeAsText <- function() {
          paste(max(df_filtered$hunt_year))
    )
 }
+
+# Generate colour palette for maps
+# Show possible colour schemes
+#display.brewer.all()
+mapColours <- colorFactor(
+  palette = brewer.pal(length(unique(sp_wmus$HUNTING_REGION)), "Set3"),
+  levels = unique(sp_wmus$HUNTING_REGION)
+  )
 ```
 
 ```{r}
@@ -607,40 +689,6 @@ print(plot_prov_totalkills)
 ```{r}
 # Map of WMUs
 
-# Add fields to separate region 7 into 7A and 7B (region code and region name)
-# Input:  WMU number as string
-# Output:  Hunting region number as string
-GetRegionCode <- function(wmuID) {
-  regionString <- df_wmuRegions %>% 
-    filter(wmu_string==wmuID) %>% 
-    pull(region)  # return column as a vector
-  return(regionString)
-}
-# Input:  Hunting region number as string
-# Output:  Hunting region name as string
-GetRegionName <- function(regionID) {
-  regionName <- df_regionNames %>% 
-    filter(region==regionID) %>% 
-    pull(name)  # return column as a vector
-  return(regionName)
-}
-sp_wmus@data$HUNTING_REGION <- unlist(lapply(sp_wmus$WILDLIFE_MGMT_UNIT_ID, 
-                                          GetRegionCode))
-sp_wmus@data$HUNTING_REGION_NAME <- unlist(lapply(sp_wmus$HUNTING_REGION, 
-                                          GetRegionName))
-
-# Check total areas add to area of BC (944,735 km^2)
-# Note that the geojson areas include a bunch of water so we expect a higher estimate
-#testarea <- sum(wmus$FEATURE_AREA_SQM/(1000^2))
-
-# GENERATE COLOUR PALETTE
-# Show possible colour schemes
-#display.brewer.all()
-mapColours <- colorFactor(
-  palette = brewer.pal(length(unique(sp_wmus$HUNTING_REGION)), "Set3"),
-  levels = unique(sp_wmus$HUNTING_REGION)
-  )
-
 # PREPARE LABELS
 # Labels to show on each WMU all the time
 wmu_static_labels <- lapply(sp_wmus@polygons, function(x) {x@labpt}) %>% 
@@ -722,37 +770,6 @@ leaflet(sp_wmus) %>%
 
 ```{r}
 # SHOW HUNTING REGIONS ON MAP
-
-# WMU codes in hunting data are e.g. 101, 115
-#   - codes ending in 00 denote values from that hunting region but unknown WMU
-#   - codes ending in 99 denote totals for that hunting region
-#   - code 999 is province-wide total
-# WMU codes in geojson are e.g. 1-1, 1-15
-
-# Group WMU boundaries into hunting regions
-# https://gis.stackexchange.com/a/225731
-sp_huntingRegions <- gUnaryUnion(sp_wmus, id = sp_wmus@data$HUNTING_REGION)
-# ID of each polygon is hunting region.  Get these as dataframe, to be added to SpatialPolygons.  When dataframe is added to SpatialPolygons data, column names will be converted to SpatialPolygons tags and row names must be the same as polygon IDs, so set these appropriately.
-# https://willchernoff.com/2012/10/08/add-attribute-data-to-object-of-class-spatialpolygonsdataframe-in-r/
-# To get polygon IDs:  https://r.789695.n4.nabble.com/How-extract-the-names-of-ID-in-SpatialPolygons-object-td790614.html
-hunting_regions_data <- tibble(
-  sapply(slot(sp_huntingRegions, "polygons"), function(x) slot(x, "ID"))
-  )
-colnames(hunting_regions_data) <- c("HUNTING_REGION_ID")
-rownames(hunting_regions_data) <- hunting_regions_data$HUNTING_REGION_ID
-# Convert to SpatialPolygons dataframe so that we can add data for each region
-sp_huntingRegions <- SpatialPolygonsDataFrame(sp_huntingRegions, 
-                                            hunting_regions_data
-                                            )
-
-# ADD DATA TO SPATIALPOLYGONDATAFRAME
-# NAME of each hunting region
-sp_huntingRegions@data$HUNTING_REGION_NAME <- unlist(lapply(sp_huntingRegions$HUNTING_REGION_ID, 
-                                          GetRegionName))
-# AREA of each hunting region (km^2)
-# Note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
-# Instead, from the rgeos package use gArea() (for projected coordinates) or from the geosphere package use areaPolygon() (for lat-long coordinates) (check the +proj= part of the SpatialPolygon file to find out which you are using):  https://stackoverflow.com/a/8708828
-sp_huntingRegions@data$HUNTING_REGION_AREA <- areaPolygon(sp_huntingRegions)/(1000^2)
 
 # PREPARE LABELS
 # Labels to show on each hunting region all the time

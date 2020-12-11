@@ -64,6 +64,18 @@ filterBy <- "wmu"
 ```
 
 ```{r}
+# PARAMETERS
+
+# Plot options
+map_strokeWeight <- 2
+map_strokeOpacity <- 1
+map_fillOpacity <- 0.4
+map_hoverColour <- "red"
+map_hoverStrokeWeight <- 2
+map_staticLabelColour <- "grey"
+```
+
+```{r}
 # LOAD PACKAGES
 library(readxl) # read Excel spreadsheets
 library(tidyverse) # data manipulation
@@ -436,23 +448,6 @@ mapColours <- colorFactor(
   )
 
 # Add polygons with consistent style
-PlotPolygons <- function(colourBy, hoverLabelText) {
-  addPolygons(stroke = TRUE,
-              weight = 2,
-              opacity = 1,
-              fillOpacity = 0.4,
-              color = mapColours(colourBy),
-              label = lapply(hoverLabelText, htmltools::HTML),
-              labelOptions = labelOptions(
-                direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
-              highlight = highlightOptions(color = "red",
-                                                  fillColor = "red",
-                                                  weight = 2,
-                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
-              )
-}
-
-# Add polygons with consistent style
 # Inputs:
 # - Leaflet map (just use .)
 # - SpatialPolygonDataFrame with polygons and data field containing colour variable
@@ -463,17 +458,17 @@ PlotPolygons <- function(leafletObject, inputData, colourVariableName, labelText
   leafletObject %>% 
     addPolygons(data = inputData,
                 stroke = TRUE,
-                weight = 2,
-                opacity = 1,
-                fillOpacity = 0.4,
+                weight = map_strokeWeight,
+                opacity = map_strokeOpacity,
+                fillOpacity = map_fillOpacity,
                 color = ~mapColours(inputData[[colourVariableName]]),
                 # Text that pops up on hover:  https://stackoverflow.com/a/43155126
                 label = lapply(labelText, htmltools::HTML),
                 labelOptions = labelOptions(direction = "top"),
                 # Polygon appearance on hover
-                highlight = highlightOptions(color = "red",
-                                             fillColor = "red",
-                                             weight = 2,
+                highlight = highlightOptions(color = map_hoverColour,
+                                             fillColor = map_hoverColour,
+                                             weight = map_hoverStrokeWeight,
                                              bringToFront = TRUE
                 )
   )
@@ -497,7 +492,7 @@ AddStaticLabels <- function(leafletObject, labelData, labelVariableName) {
                         direction = 'auto', 
                         textOnly = TRUE,
                         style = list(
-                          "color" = "grey"
+                          "color" = map_staticLabelColour
                           )
                         )
                       )

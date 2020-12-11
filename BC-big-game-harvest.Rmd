@@ -193,6 +193,15 @@ GetSpeciesColour <- function(speciesCode) {
   return(species_colour)
 }
 
+# Rename entries in residency columns to "resident" or "non-resident" when they contain other information
+# Input:  x is a column from a dataframe, as a list; get it by df$x
+# Output:  renamed_x is a list that can be put back into a dataframe
+RenameResidentEntries <- function(x) {
+  x[str_detect(x, "non")] <- "non-resident"
+  x[str_detect(x, "non", negate = TRUE)] <- "resident"
+  return(x)
+}
+
 ```
 
 ```{r}
@@ -264,16 +273,46 @@ df_pop_years <- df_pop %>%
 df_filtered <- df_filtered %>% 
   left_join(df_pop_years, by = c("hunt_year" = "year"))
 
-# Do some calculations
+# Compute new metrics
 df_filtered <- df_filtered %>% 
   rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
   mutate(
     total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),
     total_hunters = sum(resident_hunters, non_resident_hunters, na.rm=TRUE),
-    total_days = sum(resident_days, non_resident_days, na.rm=TRUE),
-    kills_per_hunter = total_kills/total_hunters,
-    days_per_hunter = total_days/total_hunters,
-    days_per_kill = total_days/total_kills)
+    total_days = sum(resident_days, non_resident_days, na.rm=TRUE)
+    )
+
+# Compute totals for residents and non-residents over all species for each year
+df_year_totals <- df_filtered %>% 
+  # Compute totals per year
+  group_by(hunt_year) %>% 
+  summarise(
+    across(resident_hunters, sum, na.rm=TRUE),
+    across(non_resident_hunters, sum, na.rm=TRUE),
+    across(resident_kills, sum, na.rm=TRUE),
+    across(non_resident_kills, sum, na.rm=TRUE)
+  ) %>% 
+  # Add population of province in each year
+  left_join(df_pop_years, by = c("hunt_year" = "year")) %>% 
+  # Pivot # hunters
+  pivot_longer(cols = contains("hunters"),
+               names_to = "hunter_residency", 
+               values_to = "n_hunters"
+  ) %>% 
+  # Pivot # kills
+  pivot_longer(cols = contains("kills"),
+               names_to = "kill_residency", 
+               values_to = "n_kills"
+  )  %>% 
+  # Rename entries in resident columns to "resident" and "non-resident"
+  mutate(hunter_residency = RenameResidentEntries(hunter_residency),
+         kill_residency = RenameResidentEntries(kill_residency)
+  ) %>% 
+  # Remove rows where hunter residency and kill residency are different -- these are an artifact of doing two pivots
+  filter(hunter_residency == kill_residency) %>% 
+  # Remove redundant residency column and rename remaining column
+  mutate(kill_residency = NULL) %>% 
+  rename(residency = hunter_residency)
 ```
 
 ```{r}
@@ -347,7 +386,7 @@ print(plot_prov_hunters)
 ```{r}
 # Avg kills per hunter
 plot_prov_killsperhunter <- ggplot(data = df_filtered) +
-  aes(x = hunt_year, y = kills_per_hunter, color = species) +
+  aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
   FormatLines() +
   FormatPoints() +
   UseTheme() +
@@ -376,7 +415,7 @@ print(plot_prov_totaldays)
 ```{r}
 # Avg hunting days per hunter
 plot_prov_daysperhunter <- ggplot(data = df_filtered) +
-  aes(x = hunt_year, y = days_per_hunter, color = species) +
+  aes(x = hunt_year, y = total_days/total_hunters, color = species) +
   FormatLines() +
   FormatPoints() +
   UseTheme() +
@@ -391,7 +430,7 @@ print(plot_prov_daysperhunter)
 ```{r}
 # Avg hunting days per kill
 plot_prov_daysperhunter <- ggplot(data = df_filtered) +
-  aes(x = hunt_year, y = days_per_kill, color = species) +
+  aes(x = hunt_year, y = total_days/total_kills, color = species) +
   FormatLines() +
   FormatPoints() +
   UseTheme() +
@@ -452,17 +491,7 @@ print(plot_prov_speciesresfrac)
 
 ```{r}
 # Total resident and non-resident hunters
-# Note that each individual hunter is probably counted multiple times, because a lot of them probably have more than one tag
-hunters_residence <- df_filtered %>% 
-  group_by(hunt_year) %>% 
-  summarise(
-    across(resident_hunters, sum, na.rm=TRUE),
-    across(non_resident_hunters, sum, na.rm=TRUE),
-  ) %>% 
-  pivot_longer(cols = !hunt_year, names_to = "residency", values_to = "n_hunters") %>% 
-  left_join(df_pop_years, by = c("hunt_year" = "year"))
-
-plot_prov_totalresnonres <- ggplot(data = hunters_residence) +
+plot_prov_totalresnonres <- ggplot(data = df_year_totals) +
   aes(x = hunt_year, y = n_hunters, color = residency) +
   FormatLines() +
   FormatPoints() +
@@ -477,7 +506,7 @@ print(plot_prov_totalresnonres)
 
 
 ```{r}
-plot_prov_totalresfrac <- ggplot(data = filter(hunters_residence, residency == "resident_hunters")) +
+plot_prov_totalresfrac <- ggplot(data = filter(df_year_totals, residency == "resident")) +
   aes(x = hunt_year, y = n_hunters/population_human) +
   FormatLines() +
   FormatPoints() +
@@ -562,15 +591,8 @@ print(plot_prov_daysperhunter_nonresident)
 ```
 
 ```{r}
-total_allspecies <- df_filtered %>% 
-  group_by(hunt_year) %>% 
-  summarise(
-    across(resident_kills, sum, na.rm=TRUE),
-    across(non_resident_kills, sum, na.rm=TRUE),
-  ) %>% 
-  pivot_longer(cols = !hunt_year, names_to = "residency", values_to = "n_kills")
-
-plot_prov_totalkills <- ggplot(data = total_allspecies) +
+# Total kills over all selected species for resident and non-resident hunters
+plot_prov_totalkills <- ggplot(data = df_year_totals) +
   aes(x = hunt_year, y = n_kills, color = residency) +
   FormatLines() +
   FormatPoints() +

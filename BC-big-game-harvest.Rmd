@@ -167,6 +167,9 @@ df_species <- ReadExcel(data_species)
 sp_wmus <- geojsonio::geojson_read(file.path(map_wmu[["path"]], map_wmu[["fileName"]], 
                            fsep = .Platform$file.sep), what = "sp") %>% 
   rmapshaper::ms_simplify()
+# Try saving reduced-size map to lower RShiny load time
+# https://towardsdatascience.com/interactive-covid19-report-with-rmarkdown-plotly-leaflet-and-shiny-c6a716af7d9b
+# saveRDS(world_geojson, "countries_map.rds")
 
 ```
 ```{r}
@@ -349,16 +352,16 @@ df_year_totals <- df_filtered %>%
 # ADD DATA TO WMU MAP
 
 # Add fields to separate region 7 into 7A and 7B (region code and region name)
-sp_wmus@data$HUNTING_REGION <- unlist(lapply(sp_wmus$WILDLIFE_MGMT_UNIT_ID, 
+sp_wmus@data$HUNTING_REGION_ID <- unlist(lapply(sp_wmus$WILDLIFE_MGMT_UNIT_ID, 
                                           GetRegionCode))
-sp_wmus@data$HUNTING_REGION_NAME <- unlist(lapply(sp_wmus$HUNTING_REGION, 
+sp_wmus@data$HUNTING_REGION_NAME <- unlist(lapply(sp_wmus$HUNTING_REGION_ID, 
                                           GetRegionName))
 
 # GENERATE HUNTING REGION MAP
 
 # Group WMU boundaries into hunting regions
 # https://gis.stackexchange.com/a/225731
-sp_huntingRegions <- gUnaryUnion(sp_wmus, id = sp_wmus@data$HUNTING_REGION)
+sp_huntingRegions <- gUnaryUnion(sp_wmus, id = sp_wmus@data$HUNTING_REGION_ID)
 
 # ADD DATA TO HUNTING REGION MAP
 
@@ -405,7 +408,7 @@ FormatPoints <- function() {
   geom_point(size=2, alpha=0.7)
 }
 
-# Function to use species-specific colours
+# Use species-specific colours in line plot
 UseSpeciesColours <- function() {
      scale_colour_manual(
        name = "Species",  # legend title
@@ -428,9 +431,78 @@ YearRangeAsText <- function() {
 # Show possible colour schemes
 #display.brewer.all()
 mapColours <- colorFactor(
-  palette = brewer.pal(length(unique(sp_wmus$HUNTING_REGION)), "Set3"),
-  levels = unique(sp_wmus$HUNTING_REGION)
+  palette = brewer.pal(length(unique(sp_wmus$HUNTING_REGION_ID)), "Set3"),
+  levels = unique(sp_wmus$HUNTING_REGION_ID)
   )
+
+# Add polygons with consistent style
+PlotPolygons <- function(colourBy, hoverLabelText) {
+  addPolygons(stroke = TRUE,
+              weight = 2,
+              opacity = 1,
+              fillOpacity = 0.4,
+              color = mapColours(colourBy),
+              label = lapply(hoverLabelText, htmltools::HTML),
+              labelOptions = labelOptions(
+                direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
+              highlight = highlightOptions(color = "red",
+                                                  fillColor = "red",
+                                                  weight = 2,
+                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
+              )
+}
+
+# Add polygons with consistent style
+# Inputs:
+# - Leaflet map (just use .)
+# - SpatialPolygonDataFrame with polygons and data field containing colour variable
+# - name of variable to colour polygons by; must be in data field of SpatialPolygonDataFrame
+# - text for labels on hover; can include HTML
+# Output:  plots polygons with popup labels on the leaflet map
+PlotPolygons <- function(leafletObject, inputData, colourVariableName, labelText) {
+  leafletObject %>% 
+    addPolygons(data = inputData,
+                stroke = TRUE,
+                weight = 2,
+                opacity = 1,
+                fillOpacity = 0.4,
+                color = ~mapColours(inputData[[colourVariableName]]),
+                # Text that pops up on hover:  https://stackoverflow.com/a/43155126
+                label = lapply(labelText, htmltools::HTML),
+                labelOptions = labelOptions(direction = "top"),
+                # Polygon appearance on hover
+                highlight = highlightOptions(color = "red",
+                                             fillColor = "red",
+                                             weight = 2,
+                                             bringToFront = TRUE
+                )
+  )
+}
+# Add static text to label polygons
+# Inputs:
+# - Leaflet map (just use .)
+# - Dataframe containing columns:
+#   - "long" = longitude coordinate of each label
+#   - "lat" = latitude coordinate of each label
+#   - "labelVariableName" = text to show for each label; can include HTML
+# Output:  none, just applies labels
+AddStaticLabels <- function(leafletObject, labelData, labelVariableName) {
+  leafletObject %>% 
+    addLabelOnlyMarkers(data = labelData,
+                      lng = ~long, 
+                      lat = ~lat, 
+                      label = labelData[[labelVariableName]],
+                      labelOptions = labelOptions(
+                        noHide = TRUE, 
+                        direction = 'auto', 
+                        textOnly = TRUE,
+                        style = list(
+                          "color" = "grey"
+                          )
+                        )
+                      )
+}
+
 ```
 
 ```{r}
@@ -717,7 +789,7 @@ wmu_hover_labels <- lapply(seq(nrow(sp_wmus)),
                                  ),
                                paste(
                                  "Hunting region: ",
-                                 sp_wmus$HUNTING_REGION[x],
+                                 sp_wmus$HUNTING_REGION_ID[x],
                                  " (",
                                  sp_wmus$HUNTING_REGION_NAME[x],
                                  ")",
@@ -738,33 +810,9 @@ wmu_hover_labels <- lapply(seq(nrow(sp_wmus)),
 
 # CREATE MAP
 leaflet(sp_wmus) %>% 
-  addTiles(tilesURL) %>% 
-  addPolygons(stroke = TRUE,
-              weight = 2,
-              opacity = 1,
-              fillOpacity = 0.4,
-              color = ~mapColours(HUNTING_REGION),
-              label = lapply(wmu_hover_labels, htmltools::HTML),
-              labelOptions = labelOptions(
-                direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
-  highlight = highlightOptions(color = "red",
-                                      fillColor = "red",
-                                      weight = 2,
-                                      bringToFront = TRUE)  # bring hovered-over polygon to front
-  ) %>% 
-  addLabelOnlyMarkers(data = wmu_static_labels,  # labels always on polygons
-                      lng = ~long, 
-                      lat = ~lat, 
-                      label = ~WMU,
-                      labelOptions = labelOptions(
-                        noHide = TRUE, 
-                        direction = 'auto', 
-                        textOnly = TRUE,
-                        style = list(
-                          "color" = "grey"
-                          )
-                        )
-                      )
+  addTiles(tilesURL) %>%  
+  PlotPolygons(., sp_wmus, "HUNTING_REGION_ID", wmu_hover_labels) %>% 
+  AddStaticLabels(., wmu_static_labels, "WMU")
 
 ```
 
@@ -805,31 +853,7 @@ hunting_region_hover_labels <- lapply(seq(nrow(sp_huntingRegions)),
 # Show on map
 leaflet(sp_huntingRegions) %>% 
   addTiles(tilesURL) %>% 
-  addPolygons(stroke = TRUE,
-              weight = 2,
-              opacity = 1,
-              fillOpacity = 0.4,
-              color = ~mapColours(HUNTING_REGION_ID),
-              label = lapply(hunting_region_hover_labels, htmltools::HTML),
-              labelOptions = labelOptions(
-                direction = "top"),  # labels on hover:  https://stackoverflow.com/a/43155126
-              highlight = highlightOptions(color = "red",
-                                                  fillColor = "red",
-                                                  weight = 2,
-                                                  bringToFront = TRUE)  # bring hovered-over polygon to front
-              ) %>% 
-  addLabelOnlyMarkers(data = hunting_region_static_labels,  # labels always on polygons
-                      lng = ~long, 
-                      lat = ~lat, 
-                      label = ~hunting_region,
-                      labelOptions = labelOptions(
-                        noHide = TRUE, 
-                        direction = 'auto', 
-                        textOnly = TRUE,
-                        style = list(
-                          "color" = "grey"
-                          )
-                        )
-                      )
+  PlotPolygons(., sp_huntingRegions, "HUNTING_REGION_ID", hunting_region_hover_labels) %>% 
+  AddStaticLabels(., hunting_region_static_labels, "hunting_region")
 ```
 

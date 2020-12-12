@@ -236,6 +236,38 @@ GetRegionName <- function(regionID) {
   return(regionName)
 }
 
+# Filter hunting data based on criteria.
+# Using a function allows all the manipulation to happen in one go, so that in Shiny we will only have to define the reactive dataframe once.  There must be other ways to do this but I am not sure what they are.  It's also (maybe?) nicer than having a giant if elseif statement in the middle of everything.
+# df_huntingKills$prov_flag
+#     9 for whole-province data
+#     0 otherwise
+# df_huntingKills$wmu
+#     999 for whole-province data
+#     X00 for all of region X
+#     7A or 7B for all of region 7A or 7B
+# Inputs:
+# - input dataframe
+# - a single string denoting how to filter the input dataframe -- currently "province", "huntingRegion", "wmu"
+# Output:
+# - filtered dataframe
+FilterByRegion <- function(df_in, filterCriteria) {
+  if (filterCriteria == "province") {
+    df_out <- df_in %>%
+      filter(prov_flag == 9)
+  } else if (filterCriteria == "huntingRegion") {
+    if (is.character(huntingRegionToShow)) {
+      df_out <- df_in %>%
+        filter(wmu == huntingRegionToShow)
+    } else if (is.numeric(huntingRegionToShow)) {
+      df_out <- df_in %>%
+        filter(wmu == (100 * huntingRegionToShow + 99))
+    }
+  } else if (filterCriteria == "wmu") {
+    df_out <- df_in %>%
+      filter(wmu == wmuToShow)
+  }
+}
+
 ```
 
 ```{r}
@@ -263,52 +295,24 @@ print(paste('Regions:  ',
 ```
 
 ```{r}
-# FILTER
-
-# Filter hunting data by selected region(s) and species
-# Filter by region to show -- whole-province, selected WMU(s), or selected hunting region(s)
-# df_huntingKills$prov_flag
-#     9 for whole-province data
-#     0 otherwise
-# df_huntingKills$wmu
-#     999 for whole-province data
-#     X00 for all of region X
-#     7A or 7B for all of region 7A or 7B
-if (filterBy=="province") {
-  df_filtered <- df_huntingKills %>% 
-    filter(prov_flag==9)
-} else if(filterBy=="huntingRegion") {
-  if(is.character(huntingRegionToShow)) {
-    df_filtered <- df_huntingKills %>% 
-      filter(wmu==huntingRegionToShow)
-  } else if (is.numeric(huntingRegionToShow)) {
-    df_filtered <- df_huntingKills %>% 
-      filter(wmu==(100*huntingRegionToShow + 99))
-  }
-} else if(filterBy=="wmu") {
-  df_filtered <- df_huntingKills %>% 
-    filter(wmu==wmuToShow)
-}
-# Filter by species to show
-df_filtered <- df_filtered %>% 
-  filter(species %in% speciesToShow)
+# FILTER AND ADD OTHER VARIABLES
+# Do this in one go for each dataframe, so that in Shiny it's easier to make the dataframes reactive
 
 # Filter population data so years match hunting data
 df_pop_years <- df_pop %>% 
   filter(year >= min(df_filtered$hunt_year) 
          & year <= max(df_filtered$hunt_year)) %>% 
   rename(population_human = population)
-```
 
-```{r}
-# ADD OTHER VARIABLES OF INTEREST TO DATAFRAME
-
-# Add population data
-df_filtered <- df_filtered %>% 
-  left_join(df_pop_years, by = c("hunt_year" = "year"))
-
-# Compute new metrics
-df_filtered <- df_filtered %>% 
+# Filter hunting data
+df_filtered <- df_huntingKills %>% 
+  # Show selected species
+  filter(species %in% speciesToShow) %>% 
+  # Show selected region
+  FilterByRegion(., filterBy) %>% 
+  # Add population data
+  left_join(df_pop_years, by = c("hunt_year" = "year")) %>% 
+  # Compute new metrics
   rowwise() %>% # sum over each row:  https://stackoverflow.com/a/33806717
   mutate(
     total_kills = sum(resident_kills, non_resident_kills, na.rm=TRUE),

@@ -4,7 +4,7 @@
 # ANALYSIS OPTIONS
 
 # Which species to plot
-speciesToShow <- c("DEMU", "BEAB", "GOAT")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
+#speciesToShow <- c("DEMU", "BEAB", "GOAT")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
 # Which WMU to plot -- as number, without dash, single digit as 0X
 wmuToShow <- c(332)
 # Which hunting region to plot -- as number, or as string if 7A or 7B

@@ -8,21 +8,32 @@
 #
 
 library(shiny)
+library(shinyWidgets)
 
 # Define UI for application that draws a histogram
 app_ui <- shinyUI(fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("BC big game harvest data, 1976—2018"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+            
+            # Select species to show
+            # https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html
+            # https://dreamrs.github.io/shinyWidgets/reference/pickerOptions.html
+            pickerInput("selectedSpecies",
+                        label = "Select species to show",
+                        choices = df_species$code,
+                        selected = df_species$code,
+                        multiple = TRUE,
+                        pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons
+                                      selectAllText = "Select all",  # label for select all button
+                                      deselectAllText = "Deselect all",  # label for deselect all button
+                                      noneSelectedText = "No species selected"  # text to display if no species selected
+                        )
+            )
         ),
 
         # Show a plot of the generated distribution
@@ -58,7 +69,7 @@ app_ui <- shinyUI(fluidPage(
                         column(6,
                                plotOutput("testPlot3")
                         )
-                    )
+                    ) 
                 # )
             # )
         )

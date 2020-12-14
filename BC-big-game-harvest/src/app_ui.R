@@ -25,7 +25,7 @@ app_ui <- shinyUI(fluidPage(
             # https://dreamrs.github.io/shinyWidgets/reference/pickerOptions.html
             pickerInput("selectedSpecies",
                         label = "Select species to show",
-                        choices = df_species$code,
+                        choices = setNames(as.list(df_species$code), df_species$name),
                         selected = df_species$code,
                         multiple = TRUE,
                         pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons

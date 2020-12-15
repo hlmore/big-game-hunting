@@ -11,7 +11,7 @@ wmuToShow <- c(332)
 huntingRegionToShow <- c("7A")
 # Choose to filter by province totals, hunting regions, or wmus
 # Options:  "province", "huntingRegion", "wmu"
-filterBy <- "wmu"
+#filterBy <- "wmu"
 
 # <!-- ===================================================================== -->
 # PARAMETERS

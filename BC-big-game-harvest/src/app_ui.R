@@ -14,7 +14,7 @@ library(shinyWidgets)
 app_ui <- shinyUI(fluidPage(
 
     # Application title
-    titlePanel("BC big game harvest data, 1976—2018"),
+    titlePanel("BC big game harvest data, 1976-2018"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
@@ -33,7 +33,18 @@ app_ui <- shinyUI(fluidPage(
                                       deselectAllText = "Deselect all",  # label for deselect all button
                                       noneSelectedText = "No species selected"  # text to display if no species selected
                         )
+            ),
+            
+            # Select whether to filter by WMU or hunting region
+            prettyRadioButtons("selectedRegion",
+                label = "Select region(s) to show",
+                choiceNames = c("All", "Hunting region", "WMU"),
+                choiceValues = c("province", "huntingRegion", "wmu"),
+                shape = "curve",
+                icon = icon("check"),
+                inline = TRUE  # align options horizontally
             )
+            
         ),
 
         # Show a plot of the generated distribution

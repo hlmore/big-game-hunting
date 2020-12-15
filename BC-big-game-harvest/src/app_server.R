@@ -181,7 +181,7 @@ app_server <- function(input, output, session) {
             # Show selected species
             filter(species %in% speciesToShow()) %>%
             # Show selected region
-            FilterByRegion(., filterBy) %>%
+            FilterByRegion(., input$selectedRegion) %>%
             # Add population data
             left_join(df_pop_years, by = c("hunt_year" = "year")) %>%
             # Compute new metrics

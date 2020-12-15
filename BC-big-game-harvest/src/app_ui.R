@@ -43,7 +43,11 @@ app_ui <- shinyUI(fluidPage(
                 shape = "curve",
                 icon = icon("check"),
                 inline = TRUE  # align options horizontally
-            )
+            ),
+            
+            # Select which regions to filter by
+            # https://shiny.rstudio.com/articles/dynamic-ui.html
+            uiOutput("selectedUnitsPicker")
             
         ),
 

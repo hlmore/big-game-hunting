@@ -159,6 +159,41 @@ FilterByRegion <- function(df_in, filterCriteria) {
 # Define server logic
 # All the "reactive" stuff and filtering needs to be in here (I think)
 app_server <- function(input, output, session) {
+    
+    # <!-- ===================================================================== -->
+    # UPDATE UI
+    # https://shiny.rstudio.com/articles/dynamic-ui.html
+    output$selectedUnitsPicker <- renderUI({
+        regionOption <- input$selectedRegion
+        if (regionOption == "province") {
+            listOptions <- filter(df_in, 
+                                  prov_flag == 9)
+            } else if (regionOption == "huntingRegion") {
+                listOptions <- filter(df_in, 
+                                          wmu %in% c("7A", "7B", 100*seq(9) + 99)
+                )
+            } else if (regionOption == "wmu") {
+                listOptions <- filter(df_in, 
+                                      is.numeric(wmu) && 
+                                          !(wmu %in% c("7A", "7B", 100*seq(9) + 99))
+                )
+            }
+        listOptions <- sort(unique(paste(listOptions)))
+    
+        pickerInput("selectedUnits",
+                    label = NULL,
+                    choices = listOptions,
+                    selected = listOptions,
+                    multiple = TRUE,
+                    pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons
+                                  selectAllText = "Select all",  # label for select all button
+                                  deselectAllText = "Deselect all",  # label for deselect all button
+                                  noneSelectedText = "No region selected",  # text to display if nothing selected
+                                  liveSearch = TRUE,  # add search box
+                                  liveSearchStyle = "startsWith"
+                    )
+        )
+    })
 
     # <!-- ===================================================================== -->
     # FILTER AND ADD OTHER VARIABLES

@@ -160,39 +160,50 @@ FilterByRegion <- function(df_in, filterCriteria) {
 # All the "reactive" stuff and filtering needs to be in here (I think)
 app_server <- function(input, output, session) {
     
-    # <!-- ===================================================================== -->
-    # UPDATE UI
-    # https://shiny.rstudio.com/articles/dynamic-ui.html
+    # <!-- =====================================================================
+    # --> UPDATE UI https://shiny.rstudio.com/articles/dynamic-ui.html
     output$selectedUnitsPicker <- renderUI({
         regionOption <- input$selectedRegion
         if (regionOption == "province") {
-            listOptions <- filter(df_in, 
-                                  prov_flag == 9)
+            listOptions <- NULL
             } else if (regionOption == "huntingRegion") {
-                listOptions <- filter(df_in, 
-                                          wmu %in% c("7A", "7B", 100*seq(9) + 99)
-                )
+                # Note that hunting regions 7, 7A, and 7B will all be listed.  I decided to
+                # keep it this way, because often values for all of region 7 are higher than
+                # 7A+7B due to reporting differences.
+                listOptions <- filter(df_huntingKills, 
+                                          wmu %in% c("7A", "7B", 100*seq(8) + 99)
+                ) %>% 
+                    pull(region)
             } else if (regionOption == "wmu") {
-                listOptions <- filter(df_in, 
-                                      is.numeric(wmu) && 
-                                          !(wmu %in% c("7A", "7B", 100*seq(9) + 99))
-                )
+                listOptions <- filter(df_huntingKills, 
+                                      !(wmu %in% c("7A", "7B", 
+                                                   100*seq(9) + 99,
+                                                   100*seq(9)
+                                                   )
+                                        )
+                ) %>% 
+                    pull(wmu)
             }
-        listOptions <- sort(unique(paste(listOptions)))
-    
-        pickerInput("selectedUnits",
-                    label = NULL,
-                    choices = listOptions,
-                    selected = listOptions,
-                    multiple = TRUE,
-                    pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons
-                                  selectAllText = "Select all",  # label for select all button
-                                  deselectAllText = "Deselect all",  # label for deselect all button
-                                  noneSelectedText = "No region selected",  # text to display if nothing selected
-                                  liveSearch = TRUE,  # add search box
-                                  liveSearchStyle = "startsWith"
-                    )
-        )
+        
+        if (is.null(listOptions)) {
+            # do nothing
+            # Not defining a UI element means nothing will be shown
+        } else {
+            listOptions <- sort(unique(paste(listOptions)))
+            pickerInput("selectedUnits",
+                        label = NULL,
+                        choices = listOptions,
+                        selected = listOptions,
+                        multiple = TRUE,
+                        pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons
+                                      selectAllText = "Select all",  # label for select all button
+                                      deselectAllText = "Deselect all",  # label for deselect all button
+                                      noneSelectedText = "No region selected",  # text to display if nothing selected
+                                      liveSearch = TRUE,  # add search box
+                                      liveSearchStyle = "startsWith"
+                        )
+            )
+        }
     })
 
     # <!-- ===================================================================== -->

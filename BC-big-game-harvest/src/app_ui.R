@@ -38,7 +38,7 @@ app_ui <- shinyUI(fluidPage(
             # Select whether to filter by WMU or hunting region
             prettyRadioButtons("selectedRegion",
                 label = "Select region(s) to show",
-                choiceNames = c("All", "Hunting region", "WMU"),
+                choiceNames = c("All (province)", "Hunting region", "WMU"),
                 choiceValues = c("province", "huntingRegion", "wmu"),
                 shape = "curve",
                 icon = icon("check"),

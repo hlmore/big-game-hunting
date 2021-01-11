@@ -53,6 +53,12 @@ df_pop <- ReadExcel(data_bcPopulation)
 
 # Conversions between WMU numbers and hunting regions
 df_wmuRegions <- ReadExcel(data_wmuHuntingRegions)
+# Dictionary to convert WMU codes "XXX" to formatted "X-XX" strings.  For using
+# dplyr::recode() easily later on, set the names and values as:
+#   - names = codes "XXX"
+#   - values = formatted strings "X-XX"
+wmu_dic <- setNames(df_wmuRegions$wmu_string,  # values
+                    as.character(df_wmuRegions$wmu_int))  # names
 
 # Hunting region names
 df_regionNames <- ReadExcel(data_regionNames)
@@ -164,6 +170,8 @@ app_server <- function(input, output, session) {
     # --> UPDATE UI https://shiny.rstudio.com/articles/dynamic-ui.html
     output$selectedUnitsPicker <- renderUI({
         regionOption <- input$selectedRegion
+        # Get a list of options for the drop-down menu -- this will be super
+        # long and many entries will be repeated.
         if (regionOption == "province") {
             listOptions <- NULL
             } else if (regionOption == "huntingRegion") {
@@ -182,14 +190,22 @@ app_server <- function(input, output, session) {
                                                    )
                                         )
                 ) %>% 
-                    pull(wmu)
+                    pull(wmu) %>% 
+                    unique() %>% 
+                    # Name WMU codes to match how people commonly refer to them.
+                    # These names will be displayed in the drop-down, and the
+                    # values will be returned when they are selected.
+                    # https://github.com/tidyverse/dplyr/issues/2505#issuecomment-309394137
+                    recode(., !!!wmu_dic)
             }
         
         if (is.null(listOptions)) {
-            # do nothing
+            # Do nothing
             # Not defining a UI element means nothing will be shown
         } else {
+            # Remove duplicate entries and sort, to get entries for the menu
             listOptions <- sort(unique(paste(listOptions)))
+            # Generate the dropdown menu
             pickerInput("selectedUnits",
                         label = NULL,
                         choices = listOptions,

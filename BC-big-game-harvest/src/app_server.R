@@ -55,10 +55,11 @@ df_pop <- ReadExcel(data_bcPopulation)
 df_wmuRegions <- ReadExcel(data_wmuHuntingRegions)
 # Dictionary to convert WMU codes "XXX" to formatted "X-XX" strings.  For using
 # dplyr::recode() easily later on, set the names and values as:
-#   - names = codes "XXX"
-#   - values = formatted strings "X-XX"
-wmu_dic <- setNames(df_wmuRegions$wmu_string,  # values
-                    as.character(df_wmuRegions$wmu_int))  # names
+#   - values = codes "XXX"
+#   - names = formatted strings "X-XX"
+wmu_dic <- setNames(as.character(df_wmuRegions$wmu_int),  # values
+                    df_wmuRegions$wmu_string  # names
+                    )
 
 # Hunting region names
 df_regionNames <- ReadExcel(data_regionNames)
@@ -101,7 +102,8 @@ GetSpeciesColour <- function(speciesCode) {
     return(species_colour)
 }
 
-# Rename entries in residency columns to "resident" or "non-resident" when they contain other information
+# Rename entries in residency columns to "resident" or "non-resident" when they
+# contain other information
 # Input:  x is a column from a dataframe, as a list; get it by df$x
 # Output:  renamed_x is a list that can be put back into a dataframe
 RenameResidentEntries <- function(x) {
@@ -130,7 +132,10 @@ GetRegionName <- function(regionID) {
 }
 
 # Filter hunting data based on criteria.
-# Using a function allows all the manipulation to happen in one go, so that we only have to define the reactive dataframe once.  There must be other ways to do this but I am not sure what they are.  It's also (maybe?) nicer than having a giant if elseif statement in the middle of everything.
+# Using a function allows all the manipulation to happen in one go, so that we
+# only have to define the reactive dataframe once.  There must be other ways to
+# do this but I am not sure what they are.  It's also (maybe?) nicer than having
+# a giant if elseif statement in the middle of everything.
 # df_huntingKills$prov_flag
 #     9 for whole-province data
 #     0 otherwise
@@ -140,25 +145,36 @@ GetRegionName <- function(regionID) {
 #     7A or 7B for all of region 7A or 7B
 # Inputs:
 # - input dataframe
-# - a single string denoting how to filter the input dataframe -- currently "province", "huntingRegion", "wmu"
+# - a single string denoting at which region level to filter the input dataframe
+#   -- currently "province", "huntingRegion", "wmu"
+# - a list of selected subregions for the selected region level.  NOTE that
+#   there may be a problem with this method if the subregion options requested
+#   don't match those in the dataframe.
 # Output:
 # - filtered dataframe
-FilterByRegion <- function(df_in, filterCriteria) {
-    if (filterCriteria == "province") {
+FilterByRegion <- function(df_in, filterRegion, filterSubregion) {
+    if (filterRegion == "province") {
         df_out <- df_in %>%
             filter(prov_flag == 9)
-    } else if (filterCriteria == "huntingRegion") {
-        if (is.character(huntingRegionToShow)) {
-            df_out <- df_in %>%
-                filter(wmu == huntingRegionToShow)
-        } else if (is.numeric(huntingRegionToShow)) {
-            df_out <- df_in %>%
-                filter(wmu == (100 * huntingRegionToShow + 99))
+    } else {
+        if (length(filterSubregion) != 0) {
+            if (filterRegion == "huntingRegion") {
+                # if (is.character(filterSubregion)) {  # it's always a character now that it is chosen from the dropdown
+                    df_out <- df_in %>%
+                        filter(region %in% filterSubregion)
+                # } else if (is.numeric(filterSubregion)) {
+                #     df_out <- df_in %>%
+                #         filter(wmu %in% (100 * filterSubregion + 99))
+                # }
+            } else if (filterRegion == "wmu") {
+                df_out <- df_in %>%
+                    filter(wmu %in% filterSubregion)
+            }
+        } else {
+            df_out <- df_in[0,]
         }
-    } else if (filterCriteria == "wmu") {
-        df_out <- df_in %>%
-            filter(wmu == wmuToShow)
     }
+    return(df_out)
 }
 
 # <!-- ===================================================================== -->
@@ -175,18 +191,22 @@ app_server <- function(input, output, session) {
         if (regionOption == "province") {
             listOptions <- NULL
             } else if (regionOption == "huntingRegion") {
-                # Note that hunting regions 7, 7A, and 7B will all be listed.  I decided to
-                # keep it this way, because often values for all of region 7 are higher than
-                # 7A+7B due to reporting differences.
+                # Note that hunting regions 7, 7A, and 7B will all be listed.  I
+                # decided to keep it this way, because often values for all of
+                # region 7 are higher than 7A+7B due to reporting differences.
                 listOptions <- filter(df_huntingKills, 
-                                          wmu %in% c("7A", "7B", 100*seq(8) + 99)
+                                          wmu %in% c("7A", 
+                                                     "7B", 
+                                                     as.character(100*seq(8) + 99)
+                                                     )
                 ) %>% 
                     pull(region)
             } else if (regionOption == "wmu") {
                 listOptions <- filter(df_huntingKills, 
-                                      !(wmu %in% c("7A", "7B", 
-                                                   100*seq(9) + 99,
-                                                   100*seq(9)
+                                      !(wmu %in% c("7A", 
+                                                   "7B", 
+                                                   as.character(100*seq(9) + 99),
+                                                   as.character(100*seq(9))
                                                    )
                                         )
                 ) %>% 
@@ -198,7 +218,6 @@ app_server <- function(input, output, session) {
                     # https://github.com/tidyverse/dplyr/issues/2505#issuecomment-309394137
                     recode(., !!!wmu_dic)
             }
-        
         if (is.null(listOptions)) {
             # Do nothing
             # Not defining a UI element means nothing will be shown
@@ -224,7 +243,8 @@ app_server <- function(input, output, session) {
 
     # <!-- ===================================================================== -->
     # FILTER AND ADD OTHER VARIABLES
-    # Do this in one go for each dataframe, so that it's easier to make the dataframes reactive
+    # Do this in one go for each dataframe, so that it's easier to make the
+    # dataframes reactive
     
     # Get selected species from checkboxes
     speciesToShow <- reactive({
@@ -243,7 +263,7 @@ app_server <- function(input, output, session) {
             # Show selected species
             filter(species %in% speciesToShow()) %>%
             # Show selected region
-            FilterByRegion(., input$selectedRegion) %>%
+            FilterByRegion(., input$selectedRegion, input$selectedUnits) %>%
             # Add population data
             left_join(df_pop_years, by = c("hunt_year" = "year")) %>%
             # Compute new metrics
@@ -283,7 +303,8 @@ app_server <- function(input, output, session) {
         mutate(hunter_residency = RenameResidentEntries(hunter_residency),
                kill_residency = RenameResidentEntries(kill_residency)
         ) %>% 
-        # Remove rows where hunter residency and kill residency are different -- these are an artifact of doing two pivots
+        # Remove rows where hunter residency and kill residency are different --
+        # these are an artifact of doing two pivots
         filter(hunter_residency == kill_residency) %>% 
         # Remove redundant residency column and rename remaining column
         mutate(kill_residency = NULL) %>% 
@@ -340,8 +361,14 @@ app_server <- function(input, output, session) {
     sp_huntingRegions@data$HUNTING_REGION_NAME <- unlist(lapply(sp_huntingRegions$HUNTING_REGION_ID, 
                                                                 GetRegionName))
     # AREA of each hunting region (km^2)
-    # Note that "area" in a polygon class is NOT the projected area, but rather a planar area measurement used to ensure smaller polygons are plotted after larger ones:  https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
-    # Instead, from the rgeos package use gArea() (for projected coordinates) or from the geosphere package use areaPolygon() (for lat-long coordinates) (check the +proj= part of the SpatialPolygon file to find out which you are using):  https://stackoverflow.com/a/8708828
+    # Note that "area" in a polygon class is NOT the projected area, but rather
+    # a planar area measurement used to ensure smaller polygons are plotted
+    # after larger ones:
+    # https://www.rdocumentation.org/packages/sp/versions/1.4-4/topics/Polygons-class
+    # Instead, from the rgeos package use gArea() (for projected coordinates) or
+    # from the geosphere package use areaPolygon() (for lat-long coordinates)
+    # (check the +proj= part of the SpatialPolygon file to find out which you
+    # are using):  https://stackoverflow.com/a/8708828
     sp_huntingRegions@data$HUNTING_REGION_AREA <- areaPolygon(sp_huntingRegions)/(1000^2)
     
     # <!-- ===================================================================== -->

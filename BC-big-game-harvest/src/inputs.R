@@ -6,9 +6,9 @@
 # Which species to plot
 #speciesToShow <- c("DEMU", "BEAB", "GOAT")#"ELK", "DEMU", "DEWT", "MOOS", "BEAB", "WOLF", "CARI", "GOAT", "SHEE", "BEAG", "COUG")
 # Which WMU to plot -- as number, without dash, single digit as 0X
-wmuToShow <- c(332)
+# wmuToShow <- c(332)
 # Which hunting region to plot -- as number, or as string if 7A or 7B
-huntingRegionToShow <- c("7A")
+# huntingRegionToShow <- c("7A")
 # Choose to filter by province totals, hunting regions, or wmus
 # Options:  "province", "huntingRegion", "wmu"
 #filterBy <- "wmu"

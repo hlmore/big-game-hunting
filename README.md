@@ -24,7 +24,7 @@ My main goals for the project are to learn about historical and regional trends 
 
 
 ## Usage
-Run `app.R` to build the app and show interactive options.
+Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 
 ## To do
 * Don't allow selection of hunting regions 7A and/or 7B in combination with region 7

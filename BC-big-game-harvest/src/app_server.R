@@ -178,6 +178,48 @@ FilterByRegion <- function(df_in, filterRegion, filterSubregion) {
 }
 
 # <!-- ===================================================================== -->
+# Find properties of dataset for later, so we don't have to filter etc. in realtime.
+
+# Distinct hunting regions.  Note that hunting regions 7, 7A, and 7B will all be
+# listed.  I decided to keep it this way, because often values for all of region
+# 7 are higher than 7A+7B due to reporting differences. However during use, the
+# user shouldn't be able to select region 7 at the same time as 7A or 7B, or
+# else region 7 data will be doubled.
+huntingRegionOptions <- filter(df_huntingKills, 
+                              wmu %in% c("7A", 
+                                         "7B", 
+                                         as.character(100*seq(8) + 99)
+                                         )
+                              ) %>% 
+    pull(region) %>% 
+    # Remove duplicate entries.  Using {} overrides default behaviour of
+    # assuming the previous result is the first argument, with . being a second
+    # argument.
+    {sort(unique(paste(.)))}
+
+# Distinct wildlife management units.  Include named WMU codes to match how
+# people commonly refer to them. These names will then be able to be displayed
+# in the drop-down picker, and the values will be returned when they are
+# selected.
+wmuOptions <- filter(df_huntingKills, 
+                          !(wmu %in% c("7A", 
+                                       "7B", 
+                                       as.character(100*seq(9) + 99),
+                                       as.character(100*seq(9))
+                                       )
+                            )
+                     ) %>% 
+    pull(wmu) %>% 
+    unique() %>% 
+    # Name WMU codes to match how people commonly refer to them.
+    # https://github.com/tidyverse/dplyr/issues/2505#issuecomment-309394137
+    recode(., !!!wmu_dic) %>% 
+    # Remove duplicate entries.  Using {} overrides default behaviour of
+    # assuming the previous result is the first argument, with . being a second
+    # argument.
+    {sort(unique(paste(.)))}
+
+# <!-- ===================================================================== -->
 # Define server logic
 # All the "reactive" stuff and filtering needs to be in here (I think)
 app_server <- function(input, output, session) {
@@ -186,49 +228,33 @@ app_server <- function(input, output, session) {
     # --> UPDATE UI https://shiny.rstudio.com/articles/dynamic-ui.html
     output$selectedUnitsPicker <- renderUI({
         regionOption <- input$selectedRegion
-        # Get a list of options for the drop-down menu -- this will be super
-        # long and many entries will be repeated.
+        # Get a list of options for the drop-down menu.  These were computed
+        # earlier to reduce lag time here.
         if (regionOption == "province") {
             listOptions <- NULL
             } else if (regionOption == "huntingRegion") {
-                # Note that hunting regions 7, 7A, and 7B will all be listed.  I
-                # decided to keep it this way, because often values for all of
-                # region 7 are higher than 7A+7B due to reporting differences.
-                listOptions <- filter(df_huntingKills, 
-                                          wmu %in% c("7A", 
-                                                     "7B", 
-                                                     as.character(100*seq(8) + 99)
-                                                     )
-                ) %>% 
-                    pull(region)
+                # List options should contain all hunting regions, including 7,
+                # 7A, and 7B.
+                listOptions <- huntingRegionOptions
+                # The user shouldn't be able to select region 7 at the same time
+                # as 7A or 7B, or else region 7 data will be doubled.
+                # https://stat.ethz.ch/R-manual/R-devel/library/base/html/match.html
+                if ("7" %in% listOptions) {
+                    selectedOptions <- listOptions[!listOptions %in% c("7A", "7B")]
+                }
             } else if (regionOption == "wmu") {
-                listOptions <- filter(df_huntingKills, 
-                                      !(wmu %in% c("7A", 
-                                                   "7B", 
-                                                   as.character(100*seq(9) + 99),
-                                                   as.character(100*seq(9))
-                                                   )
-                                        )
-                ) %>% 
-                    pull(wmu) %>% 
-                    unique() %>% 
-                    # Name WMU codes to match how people commonly refer to them.
-                    # These names will be displayed in the drop-down, and the
-                    # values will be returned when they are selected.
-                    # https://github.com/tidyverse/dplyr/issues/2505#issuecomment-309394137
-                    recode(., !!!wmu_dic)
+                listOptions <- wmuOptions
+                selectedOptions <- wmuOptions
             }
         if (is.null(listOptions)) {
             # Do nothing
             # Not defining a UI element means nothing will be shown
         } else {
-            # Remove duplicate entries and sort, to get entries for the menu
-            listOptions <- sort(unique(paste(listOptions)))
             # Generate the dropdown menu
             pickerInput("selectedUnits",
                         label = NULL,
                         choices = listOptions,
-                        selected = listOptions,
+                        selected = selectedOptions,
                         multiple = TRUE,
                         pickerOptions(actionsBox = TRUE,  # add select/deselect all buttons
                                       selectAllText = "Select all",  # label for select all button

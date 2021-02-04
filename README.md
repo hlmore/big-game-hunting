@@ -44,8 +44,8 @@ I used the following publicly-available data sets from the B.C. provincial gover
   - There is a Shiny app for this data (which I didn't know about when starting mine) at https://kootenaywildlife.shinyapps.io/BCHarvestData_2018/ and an up-to-date version at https://kootenaywildlife.shinyapps.io/BCHarvestData/.  However it limits some regional analyses to the Kootenay region.
 * Annual population of BC (1867--2019):  [[overview]](https://www2.gov.bc.ca/gov/content/data/statistics/people-population-community/population/population-estimates)  [[csv]](https://www2.gov.bc.ca/assets/gov/data/statistics/people-population-community/population/pop_bc_annual_estimates.csv)
 * Hunting licence sales (2005--2020):  [[overview]](https://catalogue.data.gov.bc.ca/dataset/hunting-sales-statistics-2005-to-current) [[csv]](https://catalogue.data.gov.bc.ca/dataset/eeb0fd5a-36d6-41f2-be3d-568e03cbdd75/resource/2ed47a7b-1319-4efc-8ded-f88db46b2814/download/hunting-sales-statistics-05-06-to-current.csv)
-  - Haven't incorporated this yet, but will use the csv version because the data was formatted in a friendlier way for analysis
-* B.C. Wildlife management units:  [overview and link to custom download](https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units)
+  - Haven't incorporated this yet, but will use the csv version because the data is formatted in a friendlier way for analysis
+* B.C. Wildlife management units:  [[overview and link to custom download]](https://catalogue.data.gov.bc.ca/dataset/wildlife-management-units)
   - I selected the entire province and chose geoJSON format
 
 There is some really interesting (although a bit outdated) background information on how hunting quotas are set in the 2007--2011 [Kootenay Wildlife Harvest Advisory Committee meeting minutes](http://www.env.gov.bc.ca/kootenay/wld/kwhac.html).

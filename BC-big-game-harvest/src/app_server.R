@@ -271,7 +271,7 @@ app_server <- function(input, output, session) {
     # FILTER AND ADD OTHER VARIABLES
     # Do this in one go for each dataframe, so that it's easier to make the
     # dataframes reactive
-    
+
     # Get selected species from checkboxes
     speciesToShow <- reactive({
         input$selectedSpecies
@@ -283,13 +283,25 @@ app_server <- function(input, output, session) {
                & year <= max(df_huntingKills$hunt_year)) %>% 
         rename(population_human = population)
     
-    # Filter hunting data
+    # Filter hunting data and sum over each species within each year
     df_filtered <-  reactive({
         df_huntingKills %>%
             # Show selected species
             filter(species %in% speciesToShow()) %>%
             # Show selected region
             FilterByRegion(., input$selectedRegion, input$selectedUnits) %>%
+            # Sum over each species within each year
+            select("hunt_year", 
+                     "species", 
+                     "resident_hunters", 
+                     "resident_days", 
+                     "resident_kills", 
+                     "non_resident_hunters", 
+                     "non_resident_days", 
+                     "non_resident_kills") %>% 
+            group_by(hunt_year, species) %>% 
+            summarise(across(resident_hunters:non_resident_kills, sum, na.rm=TRUE)) %>% 
+            ungroup() %>% 
             # Add population data
             left_join(df_pop_years, by = c("hunt_year" = "year")) %>%
             # Compute new metrics
@@ -302,7 +314,10 @@ app_server <- function(input, output, session) {
             )
     })
     
-    # Compute totals for residents and non-residents over all species for each year
+    # Compute totals for residents and non-residents over all species for each
+    # year.  Note that some species had NA kills (as opposed to 0) in some
+    # categories.  For the purposes of total kills per region or WMU, these were
+    # treated as 0 (I tested this with black bears in 2012 in hunt region 6).
     df_year_totals <- reactive({
         df_filtered() %>% 
         # Compute totals per year

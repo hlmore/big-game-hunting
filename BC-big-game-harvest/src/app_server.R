@@ -159,13 +159,18 @@ FilterByRegion <- function(df_in, filterRegion, filterSubregion) {
     } else {
         if (length(filterSubregion) != 0) {
             if (filterRegion == "huntingRegion") {
-                # if (is.character(filterSubregion)) {  # it's always a character now that it is chosen from the dropdown
-                    df_out <- df_in %>%
-                        filter(region %in% filterSubregion)
-                # } else if (is.numeric(filterSubregion)) {
-                #     df_out <- df_in %>%
-                #         filter(wmu %in% (100 * filterSubregion + 99))
-                # }
+                df_out <- df_in %>%
+                    filter(region %in% filterSubregion) %>% 
+                    # Keep only rows that represent region totals, so we don't
+                    # get double the values.  Note that WMU codes for region 7A
+                    # and 7B are 7A and 7B rather than *99 as for other regions.
+                    filter(
+                        (wmu %in% c("7A", 
+                                    "7B", 
+                                    as.character(100*seq(8) + 99)
+                        )
+                          )
+                        )
             } else if (filterRegion == "wmu") {
                 df_out <- df_in %>%
                     filter(wmu %in% filterSubregion)

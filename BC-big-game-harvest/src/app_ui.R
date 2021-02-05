@@ -16,7 +16,7 @@ app_ui <- shinyUI(fluidPage(
     # Application title
     titlePanel("BC big game harvest data, 1976-2018"),
 
-    # Sidebar with a slider input for number of bins
+    # Sidebar with inputs
     sidebarLayout(
         sidebarPanel(
             

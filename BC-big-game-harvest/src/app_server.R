@@ -500,10 +500,10 @@ app_server <- function(input, output, session) {
     
     # Line and point styles
     FormatLines <- function() {
-        geom_line()
+        geom_line(size=1.5, alpha=1)
     }
     FormatPoints <- function() {
-        geom_point(size=2, alpha=0.7)
+        geom_point(size=3, alpha=1)
     }
     
     # Use species-specific colours in line plot

@@ -13,6 +13,7 @@
 library(readxl) # read Excel spreadsheets
 library(tidyverse) # data manipulation
 library(janitor) # data cleaning
+library(scales)  # comma separator for thousands in plot axes
 library(leaflet)  # mapping
 library(geojsonio)  # read geojson files
 library(rmapshaper)  # simplify areas on maps
@@ -271,6 +272,53 @@ app_server <- function(input, output, session) {
             )
         }
     })
+    
+    # Watch selected regions and disable hunting region 7 or 7A/B as needed to
+    # prevent simultaneously selecting region 7 and one or both of 7A/7B.
+    # https://rdrr.io/cran/shinyWidgets/man/updatePickerInput.html
+    # https://stackoverflow.com/questions/52822999/disable-an-item-in-selectinput-dropdown
+    observeEvent(input$selectedUnits, {
+        if (input$selectedRegion == "huntingRegion") {
+            if ("7" %in% input$selectedUnits) {
+                cat(file=stderr(), paste('triggered'), "\n")
+                # Disallow options 7A and 7B when option 7 is selected
+                updatePickerInput(session = session, 
+                                  inputId = "selectedUnits",
+                                  choicesOpt = list(
+                                      disabled = c("7A", "7B")
+                                      )
+                )
+            } else if (any(c("7A, 7B") %in% input$selectedUnits)) {
+                # Disallow option 7 when either or both of options 7A or 7B are selected
+                updatePickerInput(session = session, 
+                                  inputId = "selectedUnits",
+                                  choicesOpt = list(
+                                      disabled = c("7")
+                                  )
+                )
+            }
+        }
+        }, ignoreInit = TRUE)
+        
+        # mtcars2 <- mtcars[mtcars$mpg >= input$up, ]
+        # 
+        # # Method 1
+        # updatePickerInput(session = session, inputId = "selectedUnits",
+        #                   choices = rownames(mtcars2))
+        # 
+        # # Method 2
+        # disabled_choices <- !rownames(mtcars) %in% rownames(mtcars2)
+        # updatePickerInput(
+        #     session = session, inputId = "p2",
+        #     choices = rownames(mtcars),
+        #     choicesOpt = list(
+        #         disabled = disabled_choices,
+        #         style = ifelse(disabled_choices,
+        #                        yes = "color: rgba(119, 119, 119, 0.5);",
+        #                        no = "")
+        #     )
+        # )
+        # 
 
     # <!-- ===================================================================== -->
     # FILTER AND ADD OTHER VARIABLES
@@ -425,6 +473,11 @@ app_server <- function(input, output, session) {
         theme_light()
     }
     
+    # Thousands separator on y axis
+    FormatY <- function() {
+        scale_y_continuous(labels = comma)
+    }
+    
     # Line and point styles
     FormatLines <- function() {
         geom_line()
@@ -522,6 +575,7 @@ app_server <- function(input, output, session) {
                 FormatLines() +
                 FormatPoints() +
                 UseTheme() +
+                FormatY() +
                 UseSpeciesColours() +
                 labs(x = paste("Year"),
                      y = paste("Total # kills"),

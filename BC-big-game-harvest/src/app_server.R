@@ -478,9 +478,19 @@ app_server <- function(input, output, session) {
         theme(legend.position = "none")
     }
     
-    # Thousands separator on y axis
+    # Format y axis options
     FormatY <- function() {
-        scale_y_continuous(labels = comma)
+        scale_y_continuous(labels = comma,  # thousands separator on labels
+                           limits = c(0, NA),  # set lower limit to 0
+                           expand = expansion(mult = c(0, .05))  # remove padding between lower limit and axis edge
+        )
+    }
+    
+    # Format x axis options
+    FormatX <- function() {
+        scale_x_continuous(limits = c(1975, NA),  # set lower limit to one year before start of data
+                           expand = expansion(mult = c(0, .05))  # remove padding between lower limit and axis edge
+        )
     }
     
     # Line and point styles
@@ -578,6 +588,7 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            FormatX() +
             FormatY() +
             UseSpeciesColours() +
             RemoveLegend() +
@@ -594,6 +605,7 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            FormatX() +
             FormatY() +
             UseSpeciesColours() +
             RemoveLegend() +
@@ -602,36 +614,38 @@ app_server <- function(input, output, session) {
                  title = paste("Total hunters")
             )
     })
-        
-    output$plotBotL <- renderPlot({
-        # Avg kills per hunter
-        ggplot(data = df_filtered()) +
-            aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
-            FormatLines() +
-            FormatPoints() +
-            UseTheme() +
-            FormatY() +
-            UseSpeciesColours() +
-            RemoveLegend() +
-            labs(x = paste("Year"),
-                 y = NULL,
-                 title = paste("Average kills per hunter")
-            )
-    })
     
-    output$plotBotR <- renderPlot({
+    output$plotBotL <- renderPlot({
         # # Avg hunting days per kill
         ggplot(data = df_filtered()) +
             aes(x = hunt_year, y = total_days/total_kills, color = species) +
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            FormatX() +
             FormatY() +
             UseSpeciesColours() +
             RemoveLegend() +
             labs(x = paste("Year"),
                  y = NULL,
-                 title = paste("Average # hunting days per kill")
+                 title = paste("Average hunting days per kill")
+            )
+    })
+        
+    output$plotBotR <- renderPlot({
+        # Avg kills per hunter
+        ggplot(data = df_filtered()) +
+            aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
+            FormatLines() +
+            FormatPoints() +
+            UseTheme() +
+            FormatX() +
+            FormatY() +
+            UseSpeciesColours() +
+            RemoveLegend() +
+            labs(x = paste("Year"),
+                 y = NULL,
+                 title = paste("Average success rate (# kills per hunter)")
             )
     })
         

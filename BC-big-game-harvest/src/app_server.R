@@ -566,93 +566,64 @@ app_server <- function(input, output, session) {
     
     # <!-- ===================================================================== -->
     # PLOT
-    
-    #browser()
-        output$distPlot <- renderPlot({
-            ggplot(data = df_filtered()) +
-                aes(x = hunt_year, y = total_kills, color = species) +
-                geom_line() +
-                FormatLines() +
-                FormatPoints() +
-                UseTheme() +
-                FormatY() +
-                UseSpeciesColours() +
-                labs(x = paste("Year"),
-                     y = paste("Total # kills"),
-                     title = paste("Total kills")#, YearRangeAsText())
-                )
-    
-            # generate bins based on input$bins from ui.R
-            # x    <- faithful[, 2]
-            # bins <- seq(min(x), max(x), length.out = 12)
-            # 
-            # # draw the histogram with the specified number of bins
-            # hist(x, breaks = bins, col = map_hoverColour, border = 'white')
-    
-        })
-        
-        output$testPlot <- renderPlot({
-            # Total hunters
-            # ggplot(data = df_filtered()) +
-            #     aes(x = hunt_year, y = total_hunters, color = species) +
-            #     # FormatLines() +
-            #     # FormatPoints() +
-            #     UseTheme() +
-            #     # UseSpeciesColours() +
-            #     labs(x = paste("Year"),
-            #          y = paste("Total # hunters"),
-            #          title = paste("Total hunters")#, YearRangeAsText())
-            #     )
-            
-            # generate bins based on input$bins from ui.R
-            x    <- faithful[, 2]
-            bins <- seq(min(x), max(x), length.out = 12)
 
-            # draw the histogram with the specified number of bins
-            hist(x, breaks = bins, col = map_hoverColour, border = 'white')
-        })
-        
-        output$testPlot2 <- renderPlot({
-        #     # Avg kills per hunter
-        #     ggplot(data = df_filtered()) +
-        #         aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
-        #         # FormatLines() +
-        #         # FormatPoints() +
-        #         UseTheme() +
-        #         # UseSpeciesColours() +
-        #         labs(x = paste("Year"),
-        #              y = paste("Avg kills per hunter"),
-        #              title = paste("Average kills per hunter")#, YearRangeAsText())
-        #         )
-        # })
-        
-                # generate bins based on input$bins from ui.R
-                x    <- faithful[, 2]
-                bins <- seq(min(x), max(x), length.out = 12)
-            
-                # draw the histogram with the specified number of bins
-                hist(x, breaks = bins, col = map_hoverColour, border = 'white')
-        })
-        
-        output$testPlot3 <- renderPlot({
-            # # Avg hunting days per kill
-            # ggplot(data = df_filtered()) +
-            #     aes(x = hunt_year, y = total_days/total_kills, color = species) +
-            #     # FormatLines() +
-            #     # FormatPoints() +
-            #     UseTheme() +
-            #     # UseSpeciesColours() +
-            #     labs(x = paste("Year"),
-            #          y = paste("Avg hunt days per kill"),
-            #          title = paste("Average # hunting days per kill")#, YearRangeAsText())
-            #     )
-            
-            # generate bins based on input$bins from ui.R
-            x    <- faithful[, 2]
-            bins <- seq(min(x), max(x), length.out = 12)
+    output$plotTopL <- renderPlot({
+        ggplot(data = df_filtered()) +
+            aes(x = hunt_year, y = total_kills, color = species) +
+            FormatLines() +
+            FormatPoints() +
+            UseTheme() +
+            FormatY() +
+            UseSpeciesColours() +
+            labs(x = paste("Year"),
+                 y = paste("Total # kills"),
+                 title = paste("Total kills")
+            )
+    })
     
-            # draw the histogram with the specified number of bins
-            hist(x, breaks = bins, col = map_hoverColour, border = 'white')
-        })
+    output$plotTopR <- renderPlot({
+        # Total hunters
+        ggplot(data = df_filtered()) +
+            aes(x = hunt_year, y = total_hunters, color = species) +
+            FormatLines() +
+            FormatPoints() +
+            UseTheme() +
+            FormatY() +
+            UseSpeciesColours() +
+            labs(x = paste("Year"),
+                 y = paste("Total # hunters"),
+                 title = paste("Total hunters")
+            )
+    })
+        
+    output$plotBotL <- renderPlot({
+        # Avg kills per hunter
+        ggplot(data = df_filtered()) +
+            aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
+            FormatLines() +
+            FormatPoints() +
+            UseTheme() +
+            FormatY() +
+            UseSpeciesColours() +
+            labs(x = paste("Year"),
+                 y = paste("Avg kills per hunter"),
+                 title = paste("Average kills per hunter")
+            )
+    })
+    
+    output$plotBotR <- renderPlot({
+        # # Avg hunting days per kill
+        ggplot(data = df_filtered()) +
+            aes(x = hunt_year, y = total_days/total_kills, color = species) +
+            FormatLines() +
+            FormatPoints() +
+            UseTheme() +
+            FormatY() +
+            UseSpeciesColours() +
+            labs(x = paste("Year"),
+                 y = paste("Avg hunt days per kill"),
+                 title = paste("Average # hunting days per kill")
+            )
+    })
         
         }

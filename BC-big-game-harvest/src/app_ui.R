@@ -65,11 +65,11 @@ app_ui <- shinyUI(fluidPage(
                     fluidRow(
                         
                         column(6,
-                               plotOutput("distPlot")
+                               plotOutput("plotTopL")
                         ),
                         
                         column(6,
-                               plotOutput("testPlot")
+                               plotOutput("plotTopR")
                         )
                     ),
                 # ),
@@ -78,11 +78,11 @@ app_ui <- shinyUI(fluidPage(
                     fluidRow(
                         
                         column(6,
-                               plotOutput("testPlot2")
+                               plotOutput("plotBotL")
                         ),
                         
                         column(6,
-                               plotOutput("testPlot3")
+                               plotOutput("plotBotR")
                         )
                     ) 
                 # )

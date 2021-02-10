@@ -473,6 +473,11 @@ app_server <- function(input, output, session) {
         theme_light()
     }
     
+    # Set font size.  Default is 11pt.
+    SetFontSize <- function() {
+        theme(text = element_text(size = 15))
+    }
+    
     # Turn off legend
     RemoveLegend <- function() {
         theme(legend.position = "none")
@@ -588,11 +593,12 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            SetFontSize() +
             FormatX() +
             FormatY() +
             UseSpeciesColours() +
             RemoveLegend() +
-            labs(x = paste("Year"),
+            labs(x = NULL,#paste("Year"),
                  y = NULL,
                  title = paste("Total kills")
             )
@@ -605,11 +611,12 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            SetFontSize() +
             FormatX() +
             FormatY() +
             UseSpeciesColours() +
             RemoveLegend() +
-            labs(x = paste("Year"),
+            labs(x = NULL,#paste("Year"),
                  y = NULL,
                  title = paste("Total hunters")
             )
@@ -622,6 +629,7 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            SetFontSize() +
             FormatX() +
             FormatY() +
             UseSpeciesColours() +
@@ -639,6 +647,7 @@ app_server <- function(input, output, session) {
             FormatLines() +
             FormatPoints() +
             UseTheme() +
+            SetFontSize() +
             FormatX() +
             FormatY() +
             UseSpeciesColours() +

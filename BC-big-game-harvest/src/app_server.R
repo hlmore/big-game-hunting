@@ -473,6 +473,11 @@ app_server <- function(input, output, session) {
         theme_light()
     }
     
+    # Turn off legend
+    RemoveLegend <- function() {
+        theme(legend.position = "none")
+    }
+    
     # Thousands separator on y axis
     FormatY <- function() {
         scale_y_continuous(labels = comma)
@@ -575,8 +580,9 @@ app_server <- function(input, output, session) {
             UseTheme() +
             FormatY() +
             UseSpeciesColours() +
+            RemoveLegend() +
             labs(x = paste("Year"),
-                 y = paste("Total # kills"),
+                 y = NULL,
                  title = paste("Total kills")
             )
     })
@@ -590,8 +596,9 @@ app_server <- function(input, output, session) {
             UseTheme() +
             FormatY() +
             UseSpeciesColours() +
+            RemoveLegend() +
             labs(x = paste("Year"),
-                 y = paste("Total # hunters"),
+                 y = NULL,
                  title = paste("Total hunters")
             )
     })
@@ -605,8 +612,9 @@ app_server <- function(input, output, session) {
             UseTheme() +
             FormatY() +
             UseSpeciesColours() +
+            RemoveLegend() +
             labs(x = paste("Year"),
-                 y = paste("Avg kills per hunter"),
+                 y = NULL,
                  title = paste("Average kills per hunter")
             )
     })
@@ -620,8 +628,9 @@ app_server <- function(input, output, session) {
             UseTheme() +
             FormatY() +
             UseSpeciesColours() +
+            RemoveLegend() +
             labs(x = paste("Year"),
-                 y = paste("Avg hunt days per kill"),
+                 y = NULL,
                  title = paste("Average # hunting days per kill")
             )
     })

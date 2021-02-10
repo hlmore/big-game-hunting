@@ -28,7 +28,6 @@ Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 
 ## To do
 * Don't allow selection of hunting regions 7A and/or 7B in combination with region 7
-* Fix issue with dropdown menus incorrectly selecting data (possibly related to character vs. numeric selections)
 * Add additional plots of timeseries data
 * Use single legend, and format axes of graphs
 * Add map to select regions graphically

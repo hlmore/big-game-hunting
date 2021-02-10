@@ -28,7 +28,7 @@ Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 
 ## To do
 * Don't allow selection of hunting regions 7A and/or 7B in combination with region 7
-* Add additional plots of timeseries data
+* Edit additional plots of timeseries data to show relevant info
 * Incorporate hunting licence sales
 * Consider adding fishing data?
 * Use single legend, and format axes of graphs

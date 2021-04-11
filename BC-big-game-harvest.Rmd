@@ -60,7 +60,7 @@ wmuToShow <- c(332)
 huntingRegionToShow <- c("7A")
 # Choose to filter by province totals, hunting regions, or wmus
 # Options:  "province", "huntingRegion", "wmu"
-filterBy <- "wmu"
+filterBy <- "huntingRegion"
 ```
 
 ```{r}
@@ -300,8 +300,8 @@ print(paste('Regions:  ',
 
 # Filter population data so years match hunting data
 df_pop_years <- df_pop %>% 
-  filter(year >= min(df_filtered$hunt_year) 
-         & year <= max(df_filtered$hunt_year)) %>% 
+  filter(year >= min(df_huntingKills$hunt_year) 
+         & year <= max(df_huntingKills$hunt_year)) %>% 
   rename(population_human = population)
 
 # Filter hunting data

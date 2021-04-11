@@ -32,7 +32,7 @@ Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 * Separate resident and non-resident hunters and their kills
 * Incorporate hunting licence sales
 * Consider adding fishing data?
-* Use single legend, and format axes of graphs to take up the same amount of space (adjust for different label lengths)
+* Use single legend
 * Add map to select regions graphically
 * Add tab with regional differences for a given year
 * Add tooltips to show data when you hover over a plot

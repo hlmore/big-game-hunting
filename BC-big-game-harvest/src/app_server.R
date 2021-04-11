@@ -344,17 +344,17 @@ app_server <- function(input, output, session) {
             # Show selected region
             FilterByRegion(., input$selectedRegion, input$selectedUnits) %>%
             # Sum over each species within each year
-            select("hunt_year", 
-                     "species", 
-                     "resident_hunters", 
-                     "resident_days", 
-                     "resident_kills", 
-                     "non_resident_hunters", 
-                     "non_resident_days", 
-                     "non_resident_kills") %>% 
-            group_by(hunt_year, species) %>% 
-            summarise(across(resident_hunters:non_resident_kills, sum, na.rm=TRUE)) %>% 
-            ungroup() %>% 
+            select("hunt_year",
+                     "species",
+                     "resident_hunters",
+                     "resident_days",
+                     "resident_kills",
+                     "non_resident_hunters",
+                     "non_resident_days",
+                     "non_resident_kills") %>%
+            group_by(hunt_year, species) %>%
+            summarise(across(resident_hunters:non_resident_kills, sum, na.rm=TRUE)) %>%
+            ungroup() %>%
             # Add population data
             left_join(df_pop_years, by = c("hunt_year" = "year")) %>%
             # Compute new metrics
@@ -478,6 +478,54 @@ app_server <- function(input, output, session) {
         theme(text = element_text(size = 15))
     }
     
+    # Adjust y-axis margin so all plots end up being the same size
+    # Helpful links:
+    # - https://stackoverflow.com/questions/10836843/ggplot2-plot-area-margins
+    # - http://www.sthda.com/english/wiki/ggplot2-title-main-axis-and-legend-titles
+    # - https://statisticsglobe.com/adjust-space-between-ggplot2-axis-labels-and-plot-area-in-r
+    # - https://www.rdocumentation.org/packages/ggplot2/versions/3.3.3/topics/theme
+    # - https://www.rdocumentation.org/packages/ggplot2/versions/3.3.0/topics/margin
+    # - ?grid::unit gives a list of units:  https://stackoverflow.com/a/17313561
+    # - https://www.rdocumentation.org/packages/graphics/versions/3.6.2/topics/strwidth
+    # - https://www.tutorialspoint.com/how-to-change-plot-area-margins-using-ggplot2-in-r
+    # - https://stackoverflow.com/a/29465942
+    # Note that I couldn't figure out how to select a single item from a
+    # reactive list, so I passed the whole list and the index of the item to use
+    # for the current plot.
+    # Note that this is a stupid way to do this -- it would be better to pass
+    # the max y tick label, because often the max is e.g. 1,050 but the max tick
+    # label is e.g. 900, meaning that basing margins on the max value does not
+    # offset enough for the max y tick label.  However I can't figure out a way
+    # to get the max tick label easily.
+    # INPUT:
+    # - longestYTickLabelList = dataframe which is basically a list of values whose string representation will be subtracted from total margin width
+    # - listItem = column in dataframe to choose for the plot
+    SetYMargin <- function(longestYTickLabelList, listItem) {
+        maxVal <- max(longestYTickLabelList[,listItem], na.rm=TRUE)
+        if(maxVal<5) {
+            maxVal <- format(round(maxVal, 2), 
+                             format="f",
+                             nsmall=2)
+        } else {
+            maxVal <- format(round(maxVal, 0),
+                             format="f", 
+                             big.mark=",",
+                             nsmall=0)
+        }
+        theme(plot.margin = unit(c(0,
+                                   strwidth("20", 
+                                            units = "inches")*72,  # make sure the end of 2020 isn't cut off
+                                   0,
+                                   (strwidth("60,000", 
+                                            units = "inches")
+                                    - strwidth(maxVal,
+                                        units = "inches")
+                                    )*72),  # add length to left-hand side
+                                   "pt"),  # padding -- top, right, bottom, left, units
+                  axis.text.y = element_text(hjust = 1)  # horizontal alignment -- 0=left, 1=right
+        )
+    }
+    
     # Turn off legend
     RemoveLegend <- function() {
         theme(legend.position = "none")
@@ -493,8 +541,8 @@ app_server <- function(input, output, session) {
     
     # Format x axis options
     FormatX <- function() {
-        scale_x_continuous(limits = c(1975, NA),  # set lower limit to one year before start of data
-                           expand = expansion(mult = c(0, .05))  # remove padding between lower limit and axis edge
+        scale_x_continuous(limits = c(1975, 2020),  # set lower limit to one year before start of data
+                           expand = expansion(mult = c(0, 0))  # remove padding between lower limit and axis edge
         )
     }
     
@@ -586,7 +634,32 @@ app_server <- function(input, output, session) {
     
     # <!-- ===================================================================== -->
     # PLOT
-
+    
+    # Get lengths of longest label for each y axis.  This is a dumb way to do
+    # it, but I can't figure out a way to pass the y data to max() within
+    # ggplot()
+    maxYLabelLengthData <- reactive({
+        df_filtered() %>%
+            select("total_kills", "total_hunters", "total_days") %>% 
+            mutate(topL = total_kills,
+                   topR = total_hunters,
+                   botL = total_days/total_kills,
+                   botR = total_kills/total_hunters
+            ) %>% 
+            select(-c("total_kills", "total_hunters", "total_days")) #%>% 
+            # summarise_if(is.numeric, max, na.rm=TRUE)
+    })
+    
+    # c<-df_huntingKills %>% 
+    #     select("resident_kills", "resident_hunters", "resident_days") %>% 
+    #     mutate(topL = resident_kills,
+    #            topR = resident_hunters,
+    #            botL = resident_days/resident_kills,
+    #            botR = resident_kills/resident_hunters
+    #     ) %>% 
+    #     select(-c("resident_kills", "resident_hunters", "resident_days")) %>% 
+    #     summarise_if(is.numeric, max, na.rm=TRUE)
+    
     output$plotTopL <- renderPlot({
         ggplot(data = df_filtered()) +
             aes(x = hunt_year, y = total_kills, color = species) +
@@ -596,13 +669,16 @@ app_server <- function(input, output, session) {
             SetFontSize() +
             FormatX() +
             FormatY() +
+            SetYMargin(maxYLabelLengthData(), 1) +
             UseSpeciesColours() +
             RemoveLegend() +
-            labs(x = NULL,#paste("Year"),
+            labs(x = paste(""),
                  y = NULL,
                  title = paste("Total kills")
             )
-    })
+    },
+    alt = "Total kills for each species per year"
+    )
     
     output$plotTopR <- renderPlot({
         # Total hunters
@@ -614,16 +690,17 @@ app_server <- function(input, output, session) {
             SetFontSize() +
             FormatX() +
             FormatY() +
+            SetYMargin(maxYLabelLengthData(), 2) +
             UseSpeciesColours() +
             RemoveLegend() +
-            labs(x = NULL,#paste("Year"),
+            labs(x = paste(""),
                  y = NULL,
                  title = paste("Total hunters")
             )
     })
     
     output$plotBotL <- renderPlot({
-        # # Avg hunting days per kill
+        # Avg hunting days per kill
         ggplot(data = df_filtered()) +
             aes(x = hunt_year, y = total_days/total_kills, color = species) +
             FormatLines() +
@@ -632,6 +709,7 @@ app_server <- function(input, output, session) {
             SetFontSize() +
             FormatX() +
             FormatY() +
+            SetYMargin(maxYLabelLengthData(), 3) +
             UseSpeciesColours() +
             RemoveLegend() +
             labs(x = paste("Year"),
@@ -650,6 +728,7 @@ app_server <- function(input, output, session) {
             SetFontSize() +
             FormatX() +
             FormatY() +
+            SetYMargin(maxYLabelLengthData(), 4) +
             UseSpeciesColours() +
             RemoveLegend() +
             labs(x = paste("Year"),

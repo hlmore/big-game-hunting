@@ -53,40 +53,26 @@ app_ui <- shinyUI(fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-            # plotOutput("distPlot")
-            
-            # tabsetPanel(
-            #     tabPanel("Plot", plotOutput("plot")), 
-            #     tabPanel("Summary", verbatimTextOutput("summary")), 
-            #     tabPanel("Table", tableOutput("table"))
-            # )
-            
-                # tabPanel(
-                    fluidRow(
-                        
-                        column(6,
-                               plotOutput("plotTopL")
-                        ),
-                        
-                        column(6,
-                               plotOutput("plotTopR")
-                        )
-                    ),
-                # ),
+            fluidRow(
                 
-                # tabPanel(
-                    fluidRow(
-                        
-                        column(6,
-                               plotOutput("plotBotL")
-                        ),
-                        
-                        column(6,
-                               plotOutput("plotBotR")
-                        )
-                    ) 
-                # )
-            # )
+                column(6,
+                       plotOutput("plotTopL")
+                ),
+                
+                column(6,
+                       plotOutput("plotTopR")
+                )
+            ),
+            fluidRow(
+                
+                column(6,
+                       plotOutput("plotBotL")
+                ),
+                
+                column(6,
+                       plotOutput("plotBotR")
+                )
+            ) 
         )
     )
 ))

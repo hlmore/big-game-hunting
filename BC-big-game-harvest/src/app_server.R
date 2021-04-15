@@ -723,7 +723,7 @@ app_server <- function(input, output, session) {
             wellPanel(
                 style = tooltipInfo[1],
                 p(HTML(
-                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                    paste0("<h4>", GetSpeciesName(tooltipInfo[[2]]$species), "</h4>",
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Total kills: </b>", 
@@ -757,7 +757,7 @@ app_server <- function(input, output, session) {
             wellPanel(
                 style = tooltipInfo[1],
                 p(HTML(
-                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                    paste0("<h4>", GetSpeciesName(tooltipInfo[[2]]$species), "</h4>",
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Total hunters: </b>", 
@@ -791,7 +791,7 @@ app_server <- function(input, output, session) {
             wellPanel(
                 style = tooltipInfo[1],
                 p(HTML(
-                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                    paste0("<h4>", GetSpeciesName(tooltipInfo[[2]]$species), "</h4>",
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Avg days per kill: </b>", 
@@ -825,7 +825,7 @@ app_server <- function(input, output, session) {
             wellPanel(
                 style = tooltipInfo[1],
                 p(HTML(
-                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                    paste0("<h4>", GetSpeciesName(tooltipInfo[[2]]$species), "</h4>",
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Avg kills per hunter: </b>", 

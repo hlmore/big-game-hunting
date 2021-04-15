@@ -364,7 +364,12 @@ app_server <- function(input, output, session) {
                 total_hunters = sum(resident_hunters, non_resident_hunters, na.rm =
                                         TRUE),
                 total_days = sum(resident_days, non_resident_days, na.rm = TRUE)
+            ) %>% 
+            mutate(
+                avg_days_per_kill = total_days/total_kills,
+                avg_kills_per_hunter = total_kills/total_hunters
             )
+                
     })
     
     # Compute totals for residents and non-residents over all species for each
@@ -607,6 +612,7 @@ app_server <- function(input, output, session) {
                         )
             )
     }
+    
     # Add static text to label polygons
     # Inputs:
     # - Leaflet map (just use .)
@@ -632,6 +638,42 @@ app_server <- function(input, output, session) {
             )
     }
     
+    # Create tooltip when hovering over plots
+    # https://gitlab.com/snippets/16220
+    # Inputs:
+    # - hover = handle of hover object
+    # - df_in = dataframe containing info for data points
+    # Output:  list of two items:
+    # - [1] = position and style of wellPanel
+    # - [2] = dataframe of data associated with hovered point
+    FormatTooltip <- function(hover, df_in) {
+        point <- nearPoints(df_in, 
+                            hover, 
+                            threshold = 10, 
+                            maxpoints = 1, 
+                            addDist = TRUE)
+        if (nrow(point) == 0) return(NULL)
+        
+        # Calculate point position INSIDE the image as percent of total dimensions
+        # from left (horizontal) and from top (vertical)
+        left_pct <- (hover$x - hover$domain$left) / (hover$domain$right - hover$domain$left)
+        top_pct <- (hover$domain$top - hover$y) / (hover$domain$top - hover$domain$bottom)
+        # Calculate distance from left and bottom side of the picture in pixels
+        left_px <- hover$range$left + left_pct * (hover$range$right - hover$range$left)
+        top_px <- hover$range$top + top_pct * (hover$range$bottom - hover$range$top)
+        
+        # Create style property for tooltip
+        # Set background color so it's a bit transparent
+        # Set z-index so we are sure are tooltip will be on top
+        style <- paste0("position:absolute; 
+                        z-index:100; 
+                        background-color: rgba(245, 245, 245, 0.85); ",
+                        "left:", left_px + 2, "px; 
+                        top:", top_px + 2, "px;")
+        
+        return(list(style, point))
+    }
+    
     # <!-- ===================================================================== -->
     # PLOT
     
@@ -640,25 +682,20 @@ app_server <- function(input, output, session) {
     # ggplot()
     maxYLabelLengthData <- reactive({
         df_filtered() %>%
-            select("total_kills", "total_hunters", "total_days") %>% 
+            select("total_kills", 
+                   "total_hunters",
+                   "avg_days_per_kill", 
+                   "avg_kills_per_hunter") %>% 
             mutate(topL = total_kills,
                    topR = total_hunters,
-                   botL = total_days/total_kills,
-                   botR = total_kills/total_hunters
+                   botL = avg_days_per_kill,
+                   botR = avg_kills_per_hunter
             ) %>% 
-            select(-c("total_kills", "total_hunters", "total_days")) #%>% 
-            # summarise_if(is.numeric, max, na.rm=TRUE)
+            select(-c("total_kills", 
+                      "total_hunters", 
+                      "avg_days_per_kill", 
+                      "avg_kills_per_hunter"))
     })
-    
-    # c<-df_huntingKills %>% 
-    #     select("resident_kills", "resident_hunters", "resident_days") %>% 
-    #     mutate(topL = resident_kills,
-    #            topR = resident_hunters,
-    #            botL = resident_days/resident_kills,
-    #            botR = resident_kills/resident_hunters
-    #     ) %>% 
-    #     select(-c("resident_kills", "resident_hunters", "resident_days")) %>% 
-    #     summarise_if(is.numeric, max, na.rm=TRUE)
     
     output$plotTopL <- renderPlot({
         ggplot(data = df_filtered()) +
@@ -679,6 +716,21 @@ app_server <- function(input, output, session) {
     },
     alt = "Total kills for each species per year"
     )
+    # Add tooltip on hover
+    output$plotTopL_hover_info <- renderUI({
+        tooltipInfo <- FormatTooltip(input$plotTopL_hover, df_filtered())
+        if (!is.null(tooltipInfo)) {
+            wellPanel(
+                style = tooltipInfo[1],
+                p(HTML(
+                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                           "<b> Year: </b>", 
+                           tooltipInfo[[2]]$hunt_year, "<br/>",
+                           "<b> Total kills: </b>", 
+                           tooltipInfo[[2]]$total_kills, "<br/>")))
+            )
+        }
+    })
     
     output$plotTopR <- renderPlot({
         # Total hunters
@@ -698,11 +750,26 @@ app_server <- function(input, output, session) {
                  title = paste("Total hunters")
             )
     })
+    # Add tooltip on hover
+    output$plotTopR_hover_info <- renderUI({
+        tooltipInfo <- FormatTooltip(input$plotTopR_hover, df_filtered())
+        if (!is.null(tooltipInfo)) {
+            wellPanel(
+                style = tooltipInfo[1],
+                p(HTML(
+                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                           "<b> Year: </b>", 
+                           tooltipInfo[[2]]$hunt_year, "<br/>",
+                           "<b> Total hunters: </b>", 
+                           tooltipInfo[[2]]$total_hunters, "<br/>")))
+            )
+        }
+    })
     
     output$plotBotL <- renderPlot({
         # Avg hunting days per kill
         ggplot(data = df_filtered()) +
-            aes(x = hunt_year, y = total_days/total_kills, color = species) +
+            aes(x = hunt_year, y = avg_days_per_kill, color = species) +
             FormatLines() +
             FormatPoints() +
             UseTheme() +
@@ -717,11 +784,26 @@ app_server <- function(input, output, session) {
                  title = paste("Average hunting days per kill")
             )
     })
+    # Add tooltip on hover
+    output$plotBotL_hover_info <- renderUI({
+        tooltipInfo <- FormatTooltip(input$plotBotL_hover, df_filtered())
+        if (!is.null(tooltipInfo)) {
+            wellPanel(
+                style = tooltipInfo[1],
+                p(HTML(
+                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                           "<b> Year: </b>", 
+                           tooltipInfo[[2]]$hunt_year, "<br/>",
+                           "<b> Avg days per kill: </b>", 
+                           tooltipInfo[[2]]$avg_days_per_kill, "<br/>")))
+            )
+        }
+    })
         
     output$plotBotR <- renderPlot({
         # Avg kills per hunter
         ggplot(data = df_filtered()) +
-            aes(x = hunt_year, y = total_kills/total_hunters, color = species) +
+            aes(x = hunt_year, y = avg_kills_per_hunter, color = species) +
             FormatLines() +
             FormatPoints() +
             UseTheme() +
@@ -735,6 +817,21 @@ app_server <- function(input, output, session) {
                  y = NULL,
                  title = paste("Average success rate (# kills per hunter)")
             )
+    })
+    # Add tooltip on hover
+    output$plotBotR_hover_info <- renderUI({
+        tooltipInfo <- FormatTooltip(input$plotBotR_hover, df_filtered())
+        if (!is.null(tooltipInfo)) {
+            wellPanel(
+                style = tooltipInfo[1],
+                p(HTML(
+                    paste0("<h4>", tooltipInfo[[2]]$species, "</h4>",
+                           "<b> Year: </b>", 
+                           tooltipInfo[[2]]$hunt_year, "<br/>",
+                           "<b> Avg kills per hunter: </b>", 
+                           tooltipInfo[[2]]$avg_kills_per_hunter, "<br/>")))
+            )
+        }
     })
         
         }

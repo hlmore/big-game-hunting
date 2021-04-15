@@ -9,9 +9,17 @@
 
 library(shiny)
 library(shinyWidgets)
+library(shinyjs)    # use Javascript functionality without needing .js :  https://www.rdocumentation.org/packages/shinyjs/versions/1.1
+
 
 # Define UI for application that draws a histogram
 app_ui <- shinyUI(fluidPage(
+    
+    # Set up for tooltips
+    #
+    # Let Shiny know you want to use JavaScript functionality
+    # https://www.rdocumentation.org/packages/shinyjs/versions/1.1
+    useShinyjs(),
 
     # Application title
     titlePanel("BC big game harvest data, 1976-2018"),
@@ -51,28 +59,43 @@ app_ui <- shinyUI(fluidPage(
             
         ),
 
-        # Show a plot of the generated distribution
+        # Show plots
         mainPanel(
-            fluidRow(
+            # Add div for relative coordinates for tooltips
+            # https://gitlab.com/snippets/16220
+            div(
                 
-                column(6,
-                       plotOutput("plotTopL")
+                # Include options to allow interaction with plot
+                # https://shiny.rstudio.com/articles/plot-interaction.html
+                fluidRow(
+                    
+                    column(6,
+                           plotOutput("plotTopL",
+                                      hover = "plotTopL_hover"),
+                           uiOutput("plotTopL_hover_info")
+                    ),
+                    
+                    column(6,
+                           plotOutput("plotTopR",
+                                      hover = "plotTopR_hover"),
+                           uiOutput("plotTopR_hover_info")
+                    )
                 ),
-                
-                column(6,
-                       plotOutput("plotTopR")
-                )
-            ),
-            fluidRow(
-                
-                column(6,
-                       plotOutput("plotBotL")
-                ),
-                
-                column(6,
-                       plotOutput("plotBotR")
-                )
-            ) 
+                fluidRow(
+                    
+                    column(6,
+                           plotOutput("plotBotL",
+                                      hover = "plotBotL_hover"),
+                           uiOutput("plotBotL_hover_info")
+                    ),
+                    
+                    column(6,
+                           plotOutput("plotBotR",
+                                      hover = "plotBotR_hover"),
+                           uiOutput("plotBotR_hover_info")
+                    )
+                ) 
+            )
         )
     )
 ))

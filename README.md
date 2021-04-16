@@ -35,7 +35,6 @@ Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 * Use single legend
 * Add map to select regions graphically
 * Add tab with regional differences for a given year
-* Add tooltips to show data when you hover over a plot
 * Improve aesthetics of layout
 * Streamline code
 * Fix axis padding to be based off max tick label rather than max value

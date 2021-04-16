@@ -653,14 +653,75 @@ app_server <- function(input, output, session) {
                             maxpoints = 1, 
                             addDist = TRUE)
         if (nrow(point) == 0) return(NULL)
+        # browser()
         
-        # Calculate point position INSIDE the image as percent of total dimensions
-        # from left (horizontal) and from top (vertical)
-        left_pct <- (hover$x - hover$domain$left) / (hover$domain$right - hover$domain$left)
-        top_pct <- (hover$domain$top - hover$y) / (hover$domain$top - hover$domain$bottom)
-        # Calculate distance from left and bottom side of the picture in pixels
-        left_px <- hover$range$left + left_pct * (hover$range$right - hover$range$left)
-        top_px <- hover$range$top + top_pct * (hover$range$bottom - hover$range$top)
+        # hover contains:
+        # $x                1980.062
+        # $y                5822.115
+        # $coords_css$x     61.40341
+        # $coords_css$y     308.2727
+        # $coords_img$x     67.54376
+        # $coords_img$y     339.1
+        # $img_css_ratio$x  1.1
+        # $img_css_ratio$y  1.1
+        # $mapping$x        "hunt_year"
+        # $mapping$y        "total_kills"
+        # $mapping$colour   "species"
+        # $domain$left      1975
+        # $domain$right     2020
+        # $domain$bottom    0
+        # $domain$top       34995.45
+        # $range$left       44.41094
+        # $range$right      250.0522
+        # $range$bottom     401.5829
+        # $range$top        26.01217
+        # $log$x            NULL
+        # $log$y            NULL
+        
+        # hover contains:
+        #   hover$x, hover$y    = position of cursor ON the image
+        #                           (i.e. x and y coordinates in plot)
+        #   hover$domain        = values of variables at the plotting area edges
+        #                           (i.e. min and max x and y values of plot)
+        #   hover$range         = position of plotting area edges in pixels 
+        #                           relative to whole image element (zero at top left)
+        #                           (i.e. min and max pixel values of the whole
+        #                           graph+axes area)
+        # Additionally for ggplot used mappings are returned.
+        # Because we used a div(), we can use div instead of image
+        
+        
+        # Find plot dimensions and dimensions of hoverable area
+        # plot_width <- hover$domain$right - hover$domain$left
+        # plot_height <-hover$domain$top - hover$domain$bottom
+        # hoverable_width <- hover$range$right - hover$range$left
+        # hoverable_height <- hover$range$bottom - hover$range$top
+        # # Calculate point position INSIDE the plot as percent of total plot
+        # # dimensions from left (horizontal) and from top (vertical)
+        # left_pct <- (hover$x - hover$domain$left) / plot_width
+        # top_pct <- (hover$domain$top - hover$y) / plot_height
+        # # Calculate distance from left and bottom side of the total hoverable
+        # # area in pixels
+        # left_px <- hover$range$left + left_pct * hoverable_width
+        # top_px <- hover$range$top + top_pct * hoverable_height
+        # # print(c(hover$domain$left,       # 1975
+        # #         hover$domain$right,      # 2020
+        # #         hover$domain$top,        # 34,995.45  154.83  0.838   77,647.5
+        # #         hover$domain$bottom,     # 0          0       0       0
+        # #         hover$range$left,        # 44.41      44.34   44.36   44.41
+        # #         hover$range$right,       # 479.05     479.05  479.05  479.05
+        # #         hover$range$top,         # 26.01      26.01   26.01   26.01
+        # #         hover$range$bottom))     # 401.58     401.58  401.58  401.58
+        # # print(c(hover$x, hover$y))
+        # print(c(left_px, 
+        #         top_px, 
+        #         hover$coords_css$x, 
+        #         hover$coords_css$y, 
+        #         hover$coords_img$x, 
+        #         hover$coords_img$y))
+        
+        left_px <- hover$coords_css$x
+        top_px <- hover$coords_css$y
         
         # Create style property for tooltip
         # Set background color so it's a bit transparent
@@ -668,8 +729,9 @@ app_server <- function(input, output, session) {
         style <- paste0("position:absolute; 
                         z-index:100; 
                         background-color: rgba(245, 245, 245, 0.85); ",
-                        "left:", left_px + 2, "px; 
-                        top:", top_px + 2, "px;")
+                        "left:", left_px + 17, "px;
+                            top:", top_px + 2, "px;",
+                        "padding: 10px;")
         
         return(list(style, point))
     }
@@ -727,7 +789,11 @@ app_server <- function(input, output, session) {
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Total kills: </b>", 
-                           tooltipInfo[[2]]$total_kills, "<br/>")))
+                           format(tooltipInfo[[2]]$total_kills,
+                                  format="f", 
+                                  big.mark=","
+                                  ),
+                           "<br/>")))
             )
         }
     })
@@ -761,7 +827,10 @@ app_server <- function(input, output, session) {
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Total hunters: </b>", 
-                           tooltipInfo[[2]]$total_hunters, "<br/>")))
+                           format(tooltipInfo[[2]]$total_hunters,
+                                  format="f", 
+                                  big.mark=","
+                           ),"<br/>")))
             )
         }
     })
@@ -795,7 +864,7 @@ app_server <- function(input, output, session) {
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Avg days per kill: </b>", 
-                           tooltipInfo[[2]]$avg_days_per_kill, "<br/>")))
+                           round(tooltipInfo[[2]]$avg_days_per_kill, 1), "<br/>")))
             )
         }
     })
@@ -829,7 +898,7 @@ app_server <- function(input, output, session) {
                            "<b> Year: </b>", 
                            tooltipInfo[[2]]$hunt_year, "<br/>",
                            "<b> Avg kills per hunter: </b>", 
-                           tooltipInfo[[2]]$avg_kills_per_hunter, "<br/>")))
+                           round(tooltipInfo[[2]]$avg_kills_per_hunter, 2), "<br/>")))
             )
         }
     })

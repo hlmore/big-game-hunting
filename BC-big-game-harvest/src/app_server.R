@@ -368,6 +368,15 @@ app_server <- function(input, output, session) {
             mutate(
                 avg_days_per_kill = total_days/total_kills,
                 avg_kills_per_hunter = total_kills/total_hunters
+            ) %>% 
+            # Change inf to zero for calculated new metrics
+            mutate(
+                avg_days_per_kill = ifelse(is.infinite(avg_days_per_kill), 
+                                           0, 
+                                           avg_days_per_kill),
+                avg_kills_per_hunter = ifelse(is.infinite(avg_kills_per_hunter), 
+                                              0, 
+                                              avg_kills_per_hunter)
             )
                 
     })

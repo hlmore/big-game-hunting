@@ -38,6 +38,7 @@ Run `BC-big-game-harvest/app.R` to build the app and show interactive options.
 * Improve aesthetics of layout
 * Streamline code
 * Fix axis padding to be based off max tick label rather than max value
+* Fix sporadic problem where some Inf values are not plotting as 0
 
 ## References
 I used the following publicly-available data sets from the B.C. provincial government:

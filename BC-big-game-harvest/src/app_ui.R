@@ -55,7 +55,15 @@ app_ui <- shinyUI(fluidPage(
             
             # Select which regions to filter by
             # https://shiny.rstudio.com/articles/dynamic-ui.html
-            uiOutput("selectedUnitsPicker")
+            uiOutput("selectedUnitsPicker"),
+            
+            # Horizontal line to separate inputs from legend
+            # https://stackoverflow.com/a/43593325
+            hr(style = "border-top: 3px solid #FFFFFF;"),
+            
+            # Show legend
+            p(strong("Legend")),
+            p(htmlOutput("legendText"))  # https://stackoverflow.com/a/23322262
             
         ),
 

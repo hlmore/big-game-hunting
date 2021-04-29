@@ -726,6 +726,26 @@ app_server <- function(input, output, session) {
     }
     
     # <!-- ===================================================================== -->
+    # LEGEND
+    
+    # Print names of selected species
+    output$legendText <- renderText({
+        speciesNames <- lapply(speciesToShow(), GetSpeciesName)
+        speciesColours <- lapply(speciesToShow(), GetSpeciesColour)
+        # https://stackoverflow.com/a/37736135
+        # https://www.codecademy.com/articles/html-inline-styles
+        # https://stackoverflow.com/questions/39150328/using-lapply-for-multiple-lists-in-a-function
+        txt <- mapply(spName = speciesNames, 
+                      spCol = speciesColours, 
+                      FUN = function(spName, spCol) paste("<span style='color:", 
+                                                 spCol, 
+                                                 ";'><b> ----- </b></span>", 
+                                                 spName
+                      ))
+        paste0(txt, collapse="<br/>")
+    })
+    
+    # <!-- ===================================================================== -->
     # PLOT
     
     # Get lengths of longest label for each y axis.  This is a dumb way to do
